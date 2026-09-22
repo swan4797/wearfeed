@@ -1,0 +1,88 @@
+---
+// Intro-text section for static pages (service detail, about, …): a
+// full-width hairline, an eyebrow, one big statement heading, then a
+// narrower column of ruled blocks — bold subhead over soft prose — per
+// the reference capture (2023px @1x): heading ≈ 3vw bold, blocks column
+// ≈ 47% of the content width, each block opened by a hairline.
+//
+// Content arrives as data (IntroTextContent), one object per page. The
+// first instance on a page that has no other h1 should pass
+// headingAs="h1"; block subheads step down one level automatically.
+import Wrap from '../primitives/Wrap.astro';
+import Eyebrow from '../primitives/Eyebrow.astro';
+import SectionHeading from '../primitives/SectionHeading.astro';
+import type { IntroTextContent } from '../../types/content';
+
+interface Props {
+	content: IntroTextContent;
+	/** Heading level of the statement line; blocks use the level below. */
+	headingAs?: 'h1' | 'h2';
+}
+const { content, headingAs = 'h2' } = Astro.props;
+const BlockHeading = headingAs === 'h1' ? 'h2' : 'h3';
+const paragraphs = (body: string | string[]) => (Array.isArray(body) ? body : [body]);
+---
+
+<section class="intro">
+	<Wrap>
+		<div class="intro__rule" aria-hidden="true"></div>
+		<Eyebrow>{content.eyebrow}</Eyebrow>
+		<SectionHeading as={headingAs} text={content.heading} />
+
+		<div class="intro__blocks">
+			{
+				content.blocks.map((block) => (
+					<div class="intro__block">
+						<BlockHeading class="intro__subhead">{block.heading}</BlockHeading>
+						{paragraphs(block.body).map((para) => (
+							<p class="intro__body">{para}</p>
+						))}
+					</div>
+				))
+			}
+		</div>
+	</Wrap>
+</section>
+
+<style>
+	.intro {
+		padding-block: var(--sect-sm);
+		--heading-size: var(--fs-intro);
+		--heading-weight: 700;
+		--heading-measure: none;
+		--heading-tracking: -0.035em;
+		--heading-leading: 1.08;
+		--heading-gap: clamp(1.2rem, 1.65vw, 2rem);
+	}
+	/* Full content-width hairline opening the section. */
+	.intro__rule {
+		border-top: 1px solid var(--rule);
+		margin-bottom: clamp(2.5rem, 4.2vw, 5.25rem);
+	}
+
+	.intro__blocks {
+		margin-top: clamp(2.25rem, 3.2vw, 4rem);
+		max-width: 43rem;
+	}
+	.intro__block {
+		border-top: 1px solid var(--rule);
+		padding-top: clamp(1.5rem, 1.7vw, 2.1rem);
+		padding-bottom: clamp(1.9rem, 2.15vw, 2.7rem);
+	}
+	.intro__subhead {
+		font-size: clamp(1.1rem, 1.5vw, 1.35rem);
+		font-weight: 700;
+		letter-spacing: -0.015em;
+		line-height: 1.35;
+		max-width: 40ch;
+	}
+	.intro__body {
+		margin-top: clamp(1.3rem, 1.45vw, 1.8rem);
+		font-size: clamp(1rem, 1.25vw, 1.25rem);
+		line-height: 1.8;
+		color: var(--ink-soft);
+	}
+	.intro__body + .intro__body {
+		margin-top: 1.1rem;
+	}
+</style>

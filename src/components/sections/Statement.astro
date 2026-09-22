@@ -1,0 +1,58 @@
+---
+import Wrap from '../primitives/Wrap.astro';
+import Eyebrow from '../primitives/Eyebrow.astro';
+import SectionHeading from '../primitives/SectionHeading.astro';
+import StatsCounter from '../primitives/StatsCounter.astro';
+import { statement } from '../../data/statement';
+import { closures } from '../../data/closures';
+---
+
+<section class="statement" id="about">
+	<Wrap>
+		<Eyebrow>{statement.eyebrow}</Eyebrow>
+		<SectionHeading text={statement.heading} />
+
+		<div class="cols">
+			{
+				statement.cols.map((col) => (
+					<div>
+						{col.map((para) => (
+							<p>{para}</p>
+						))}
+					</div>
+				))
+			}
+		</div>
+
+		<div class="figures">
+			<StatsCounter stats={closures.facts} />
+		</div>
+	</Wrap>
+</section>
+
+<style>
+	.statement {
+		background: var(--bone);
+		padding-block: var(--sect);
+		--heading-size: var(--fs-h2-sm);
+		--heading-measure: 26ch;
+		--heading-tracking: -0.032em;
+		--heading-leading: 1.15;
+		--heading-gap: var(--space-md);
+	}
+	.cols {
+		margin-top: var(--space-xl);
+		display: grid;
+		gap: 2rem clamp(2rem, 5vw, 4.5rem);
+		grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr));
+		font-size: var(--fs-note);
+		line-height: 1.75;
+		color: var(--ink-soft);
+	}
+	.cols p + p {
+		margin-top: 1.1rem;
+	}
+	.figures {
+		margin-top: clamp(2.5rem, 6vw, 4.5rem);
+	}
+</style>

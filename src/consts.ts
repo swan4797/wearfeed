@@ -1,5 +1,5 @@
-// Place any global data in this file.
-// You can import this data from anywhere in your site by using the `import` keyword.
-
-export const SITE_TITLE = 'Astro Blog';
-export const SITE_DESCRIPTION = 'Welcome to my website!';
+// Site-wide metadata used in <head>. Page components may override per route.
+export const SITE_TITLE =
+	'Feed® — kitchen, menu and margin consulting for Asian restaurants';
+export const SITE_DESCRIPTION =
+	'Kitchen, menu and brand consulting for Asian restaurants, run by people who grew up in these kitchens. Three packages — cost, menu, demand.';

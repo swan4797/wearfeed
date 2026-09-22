@@ -1,0 +1,52 @@
+---
+import '../styles/global.css';
+import { Font } from 'astro:assets';
+import { SITE_TITLE, SITE_DESCRIPTION } from '../consts';
+
+interface Props {
+	title?: string;
+	description?: string;
+}
+const { title = SITE_TITLE, description = SITE_DESCRIPTION } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en-GB">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="generator" content={Astro.generator} />
+		<title>{title}</title>
+		<meta name="description" content={description} />
+		<link rel="canonical" href={Astro.url.href} />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<link rel="sitemap" href="/sitemap-index.xml" />
+		<Font cssVariable="--font-body" preload />
+	</head>
+	<body>
+		<a class="skip-link" href="#main">Skip to content</a>
+		<slot />
+
+		<style>
+			.skip-link {
+				position: absolute;
+				top: -4rem;
+				left: var(--wrap-pad);
+				z-index: 10;
+				padding: 0.5rem var(--space-xs);
+				background: var(--ink);
+				color: var(--bg);
+				font-weight: 600;
+				transition: top 0.15s ease-out;
+			}
+			.skip-link:focus {
+				top: 0.5rem;
+			}
+			@media (prefers-reduced-motion: reduce) {
+				.skip-link {
+					transition: none;
+				}
+			}
+		</style>
+	</body>
+</html>

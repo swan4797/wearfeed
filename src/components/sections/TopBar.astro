@@ -1,0 +1,211 @@
+---
+import Wrap from '../primitives/Wrap.astro';
+import Brandword from '../primitives/Brandword.astro';
+import SiteMenu from './SiteMenu.astro';
+import { site } from '../../config/site';
+---
+
+<header class="bar">
+	<Wrap>
+		<div class="bar__inner">
+			<Brandword />
+			<div class="bar__right">
+				<!-- <nav class="bar__nav" aria-label="Primary">
+					{site.nav.map((item) => <a href={item.href}>{item.label}</a>)}
+				</nav> -->
+				<SiteMenu />
+			</div>
+		</div>
+	</Wrap>
+</header>
+
+<style>
+	.bar {
+		background: var(--bg);
+		/* small, widely tracked wordmark, matching the restrained masthead */
+		--brand-size: var(--fs-sm);
+		--brand-weight: 700;
+		--brand-tracking: 0.15em;
+	}
+	.bar__inner {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		gap: var(--space-xs);
+		padding-block: 1.6rem;
+	}
+	.bar__right {
+		display: flex;
+		align-items: center;
+		gap: 1.8rem;
+	}
+	.bar__nav {
+		display: flex;
+		align-items: center;
+		gap: 1.4rem;
+		font-size: var(--fs-nav);
+		font-weight: 600;
+	}
+	.bar__nav a {
+		text-decoration: none;
+	}
+	.bar__nav a:hover {
+		color: var(--grey);
+	}
+	/* The burger menu carries the same links, so the inline nav can yield
+	   the space on narrow screens. */
+	@media (max-width: 600px) {
+		.bar__nav {
+			display: none;
+		}
+	}
+
+	/* ---------- fixed, scroll-aware masthead ---------- */
+	/* Same gate as the hero morph, so the transparent-over-panel state only
+	   exists when the panel really is full-screen behind it. The bar starts
+	   transparent and blends with the hero (light ink on wide screens where
+	   the panel opens full-screen; regular ink on small screens over the
+	   page background), then gains its solid surface over the first stretch
+	   of scrolling. Scroll direction — detected by the pure-CSS tracker on
+	   <body>, see the global block below — slides it away when scrolling
+	   down and brings it back on the first upward movement, at rest, or
+	   when focus moves into it. Fallbacks keep the static in-flow bar. */
+	@supports ((animation-timeline: view()) and (timeline-scope: --t)) {
+		@media (prefers-reduced-motion: no-preference) {
+			.bar {
+				position: fixed;
+				top: 0;
+				left: 0;
+				right: 0;
+				z-index: 10;
+				background: transparent;
+				border-bottom: 1px solid transparent;
+				/* Ink follows the hero's locked transition (--hero-p on <html>),
+				   not the scroll position — the transition completes while the
+				   page is still at scroll 0. The backdrop edge clears the bar in
+				   the first stretch of progress, hence the early window. */
+				--bar-inkp: clamp(0, calc((var(--hero-p, 1) - 0.02) / 0.16), 1);
+				color: color-mix(
+					in oklab,
+					var(--bar-ink-top, var(--ink)),
+					var(--ink) calc(var(--bar-inkp) * 100%)
+				);
+				visibility: visible;
+				transition:
+					transform 0.45s cubic-bezier(0.3, 0, 0.2, 1),
+					opacity 0.45s cubic-bezier(0.3, 0, 0.2, 1),
+					visibility 0s;
+				animation: bar-surface linear both;
+				animation-timeline: scroll(root);
+				animation-range: 0px 460px;
+			}
+			/* Over the full-screen panel (any width) the masthead reads light;
+			   without the hero lock the page top is the plain background. */
+			:global(html[data-hero-lock]) .bar {
+				--bar-ink-top: var(--bg);
+			}
+			.bar__nav a:hover {
+				color: color-mix(in srgb, currentColor 55%, transparent);
+			}
+
+			/* Scrolling down (past the dead zone, away from the top):
+			   slide up and fade, releasing the viewport to the content. */
+			@container style(--nav-hidden: 1) {
+				.bar {
+					transform: translateY(-100%);
+					opacity: 0;
+					visibility: hidden;
+					transition:
+						transform 0.45s cubic-bezier(0.3, 0, 0.2, 1),
+						opacity 0.45s cubic-bezier(0.3, 0, 0.2, 1),
+						visibility 0s linear 0.45s;
+				}
+			}
+			/* Keyboard focus always reveals the bar, whatever the scroll. */
+			.bar:focus-within {
+				transform: none;
+				opacity: 1;
+				visibility: visible;
+			}
+		}
+	}
+
+	/* The surface arrives with real scrolling — which only happens after
+	   the hero transition has released — fading in over the page
+	   background where the change is invisible. Colour is handled above,
+	   driven by the hero's progress variable. */
+	@keyframes bar-surface {
+		0%,
+		52% {
+			background-color: transparent;
+			border-color: transparent;
+		}
+		100% {
+			background-color: var(--bg);
+			border-color: var(--rule);
+		}
+	}
+</style>
+
+<style is:global>
+	/* Pure-CSS scroll-direction detector. A scroll-driven animation writes
+	   the scroll offset (in px) into --sp on <html>; <body> inherits it and
+	   keeps a twin, --spd, that lags 0.3s behind via a transition on the
+	   registered property. Their difference is the recent scroll velocity:
+	   --nav-hidden computes to exactly 1 only while moving DOWN faster than
+	   the 6px dead zone AND more than 140px from the top — tiny jitters
+	   never flip it, upward movement or coming to rest returns 0, and the
+	   bar above transitions smoothly between the two states. The reset on
+	   main/footer keeps the per-frame property churn out of the page
+	   subtree. */
+	@property --sp {
+		syntax: "<number>";
+		inherits: true;
+		initial-value: 0;
+	}
+	@property --spd {
+		syntax: "<number>";
+		inherits: true;
+		initial-value: 0;
+	}
+	@property --nav-hidden {
+		syntax: "<number>";
+		inherits: false;
+		initial-value: 0;
+	}
+
+	@supports ((animation-timeline: view()) and (timeline-scope: --t)) {
+		@media (prefers-reduced-motion: no-preference) {
+			html {
+				animation: feed-track-scroll linear both;
+				animation-timeline: scroll(root);
+				animation-range: 0px 100000px;
+				/* anchor jumps land clear of the fixed bar */
+				scroll-padding-top: 5.5rem;
+			}
+			body {
+				transition: --spd 0.3s linear;
+				--nav-hidden: clamp(
+					0,
+					min(
+						calc((var(--sp) - var(--spd) - 6) * 1000),
+						calc((var(--sp) - 140) * 1000)
+					),
+					1
+				);
+			}
+			main,
+			footer {
+				--sp: 0;
+				--spd: 0;
+			}
+		}
+	}
+
+	@keyframes feed-track-scroll {
+		to {
+			--sp: 100000;
+			--spd: 100000;
+		}
+	}
+</style>

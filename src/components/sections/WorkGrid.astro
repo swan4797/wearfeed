@@ -1,0 +1,207 @@
+---
+// Case-study grid: eyebrow + heading, then square tiles on a four-unit
+// grid. A featured item spans two units; because every tile keeps a 1:1
+// aspect ratio, the featured tile's height lands exactly on two stacked
+// unit tiles plus the gap, which is what squares the whole band. Captions
+// (client line + bold title) hang under each tile and absorb any content
+// length without moving the tiles.
+//
+// Tiles take a cover image (optimised through astro:assets), a muted
+// looping cover video, or a flat palette tone with an optional centred
+// mark. Items with an href become links and get the slow media zoom on
+// hover; plain items stay inert. Under prefers-reduced-motion tile videos
+// are hidden and the flat panel colour shows instead.
+import { Image } from 'astro:assets';
+import Wrap from '../primitives/Wrap.astro';
+import Eyebrow from '../primitives/Eyebrow.astro';
+import SectionHeading from '../primitives/SectionHeading.astro';
+import type { WorkSection } from '../../types/content';
+
+interface Props {
+	content: WorkSection;
+	/** Heading level; pass 'h3' when nested under another section. */
+	headingAs?: 'h2' | 'h3';
+}
+const { content, headingAs = 'h2' } = Astro.props;
+---
+
+<section class="work">
+	<Wrap>
+		<header class="work__head">
+			<Eyebrow>{content.eyebrow}</Eyebrow>
+			<SectionHeading as={headingAs} text={content.heading} />
+		</header>
+
+		<ul class="grid" role="list">
+			{
+				content.items.map((item) => {
+					const Card = item.href ? 'a' : 'div';
+					return (
+						<li class:list={[item.featured && 'item--featured']}>
+							<Card class="card" href={item.href}>
+								<div
+									class:list={[
+										'tile',
+										item.tile.kind === 'tone' && `tile--${item.tile.tone}`,
+									]}
+								>
+									{item.tile.kind === 'image' && (
+										<Image
+											src={item.tile.src}
+											alt={item.tile.alt ?? ''}
+											widths={[420, 640, 960, 1400]}
+											sizes={
+												item.featured
+													? '(max-width: 600px) 92vw, 50vw'
+													: '(max-width: 600px) 92vw, (max-width: 1023px) 46vw, 24vw'
+											}
+											loading="lazy"
+											decoding="async"
+										/>
+									)}
+									{item.tile.kind === 'video' && (
+										<video
+											src={item.tile.src}
+											poster={item.tile.poster}
+											autoplay
+											muted
+											loop
+											playsinline
+											preload="metadata"
+										/>
+									)}
+									{item.tile.kind === 'tone' && item.tile.mark && (
+										<span class="tile__mark">{item.tile.mark}</span>
+									)}
+								</div>
+								<div class="meta">
+									<Eyebrow>{item.client}</Eyebrow>
+									<p class="title">{item.title}</p>
+								</div>
+							</Card>
+						</li>
+					);
+				})
+			}
+		</ul>
+	</Wrap>
+</section>
+
+<style>
+	.work {
+		padding-block: var(--sect);
+	}
+	.work__head {
+		margin-bottom: clamp(3rem, 5vw, 4.75rem);
+		--heading-size: var(--fs-h2);
+		--heading-gap: var(--space-sm);
+		--heading-measure: 26ch;
+	}
+
+	.grid {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: grid;
+		grid-template-columns: repeat(4, minmax(0, 1fr));
+		gap: clamp(1.25rem, 2vw, 1.875rem);
+		align-items: start;
+	}
+	.item--featured {
+		grid-column: span 2;
+	}
+
+	.card {
+		display: block;
+		color: inherit;
+		text-decoration: none;
+	}
+
+	.tile {
+		aspect-ratio: 1;
+		border-radius: 0.5rem;
+		overflow: hidden;
+		display: grid;
+		place-items: center;
+		/* video tiles fall back to this when reduced motion hides them */
+		background: var(--panel);
+	}
+	.tile img,
+	.tile video {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		display: block;
+		transition: transform 0.8s cubic-bezier(0.3, 0, 0.2, 1);
+	}
+	a.card:hover .tile img,
+	a.card:hover .tile video {
+		transform: scale(1.04);
+	}
+	.tile--panel {
+		background: var(--panel);
+		color: var(--eyebrow-on-panel);
+	}
+	.tile--bone {
+		background: var(--bone);
+		color: var(--grey);
+	}
+	.tile--ink {
+		background: var(--ink);
+		color: var(--muted-on-dark);
+	}
+	.tile__mark {
+		padding: var(--space-md);
+		font-size: var(--fs-sm);
+		font-weight: 700;
+		letter-spacing: 0.14em;
+		text-transform: uppercase;
+		text-align: center;
+	}
+
+	.meta {
+		margin-top: clamp(1.1rem, 2vw, 1.6rem);
+	}
+	.title {
+		margin-top: var(--space-2xs);
+		max-width: 26ch;
+		font-size: var(--fs-tile);
+		font-weight: 700;
+		letter-spacing: -0.015em;
+		line-height: 1.3;
+	}
+	a.card:hover .title {
+		text-decoration: underline;
+		text-underline-offset: 0.25em;
+		text-decoration-thickness: 1px;
+	}
+
+	/* Tablet: two units — the featured card goes full-width, the square
+	   tiles pair up beneath it. */
+	@media (max-width: 1023px) {
+		.grid {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+	}
+	/* Mobile: single column, everything square and full-width. */
+	@media (max-width: 600px) {
+		.grid {
+			grid-template-columns: minmax(0, 1fr);
+		}
+		.item--featured {
+			grid-column: auto;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.tile img,
+		.tile video {
+			transition: none;
+		}
+		/* a moving background is motion: hide tile videos, show the flat
+		   panel colour instead */
+		.tile video {
+			display: none;
+		}
+	}
+</style>

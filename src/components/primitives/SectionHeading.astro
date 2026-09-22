@@ -1,0 +1,52 @@
+---
+// Renders a heading and wraps its trailing full stop so a section could tint
+// it independently. Size/weight/measure/tracking/leading come from inherited
+// custom properties so each section can tune them without reaching into this
+// component:
+//   --heading-size, --heading-weight, --heading-measure, --heading-tracking,
+//   --heading-leading, --heading-gap, --heading-margin-inline, --dot-color,
+//   --heading-line2-color
+interface Props {
+	/** Heading copy; an array renders one line per entry. */
+	text: string | string[];
+	as?: 'h1' | 'h2' | 'h3';
+	/** Optional second line, rendered muted inside the same heading. */
+	line2?: string;
+}
+const { text, as: Tag = 'h2', line2 } = Astro.props;
+const lines = (Array.isArray(text) ? text : [text]).map((line) => ({
+	body: line.endsWith('.') ? line.slice(0, -1) : line,
+	dot: line.endsWith('.'),
+}));
+---
+
+<Tag class="heading"
+	>{
+		lines.map((line) => (
+			// prettier-ignore
+			<span class="ln">{line.body}{line.dot && <span class="dot">.</span>}</span>
+		))
+	}{line2 && <span class="line2">{line2}</span>}</Tag
+>
+
+<style>
+	.heading {
+		margin-top: var(--heading-gap, 0);
+		margin-inline: var(--heading-margin-inline, 0);
+		font-size: var(--heading-size, var(--fs-h2));
+		font-weight: var(--heading-weight, 650);
+		max-width: var(--heading-measure, none);
+		letter-spacing: var(--heading-tracking, -0.03em);
+		line-height: var(--heading-leading, 1.1);
+	}
+	.dot {
+		color: var(--dot-color, currentColor);
+	}
+	.ln {
+		display: block;
+	}
+	.line2 {
+		display: block;
+		color: var(--heading-line2-color, var(--grey));
+	}
+</style>

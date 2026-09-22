@@ -1,0 +1,101 @@
+---
+// Ruled link rows — the same idiom as the landing package cards: bold
+// label left, ↗ right, hairlines between rows; hovering (or keyboard
+// focus) indents the label and fills the arrow with ink. An optional note
+// renders in soft grey under the label.
+interface Row {
+	label: string;
+	href: string;
+	note?: string;
+}
+interface Props {
+	rows: Row[];
+}
+const { rows } = Astro.props;
+---
+
+<ul class="rows">
+	{
+		rows.map((row) => (
+			<li>
+				<a class="rows__link" href={row.href}>
+					<span class="rows__main">
+						<span class="rows__label">{row.label}</span>
+						{row.note && <span class="rows__note">{row.note}</span>}
+					</span>
+					<span class="rows__arrow" aria-hidden="true">↗</span>
+				</a>
+			</li>
+		))
+	}
+</ul>
+
+<style>
+	.rows {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+	}
+	.rows li {
+		border-bottom: 1px solid var(--rule);
+	}
+	.rows li:first-child {
+		border-top: 1px solid var(--rule);
+	}
+	.rows__link {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--space-xs);
+		padding-block: 1rem;
+		text-decoration: none;
+	}
+	.rows__main {
+		transition: transform 0.25s cubic-bezier(0.33, 1, 0.68, 1);
+	}
+	.rows__label {
+		display: block;
+		font-size: clamp(1rem, 1.45vw, 1.3rem);
+		font-weight: 700;
+		letter-spacing: -0.02em;
+		line-height: 1.25;
+	}
+	.rows__note {
+		display: block;
+		margin-top: 0.35rem;
+		max-width: var(--measure);
+		font-size: var(--fs-note);
+		line-height: 1.55;
+		color: var(--grey);
+	}
+	.rows__arrow {
+		flex: none;
+		font-size: 1.2rem;
+		line-height: 1;
+		color: var(--ghost-stroke);
+		transition:
+			color 0.25s ease,
+			transform 0.25s cubic-bezier(0.33, 1, 0.68, 1);
+	}
+	.rows__link:hover .rows__main,
+	.rows__link:focus-visible .rows__main {
+		transform: translateX(0.6rem);
+	}
+	.rows__link:hover .rows__arrow,
+	.rows__link:focus-visible .rows__arrow {
+		color: var(--ink);
+		transform: scale(1.12);
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.rows__main,
+		.rows__arrow {
+			transition: none;
+		}
+		.rows__link:hover .rows__main,
+		.rows__link:focus-visible .rows__main,
+		.rows__link:hover .rows__arrow,
+		.rows__link:focus-visible .rows__arrow {
+			transform: none;
+		}
+	}
+</style>

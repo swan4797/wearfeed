@@ -1,0 +1,279 @@
+---
+import Wrap from '../primitives/Wrap.astro';
+import Eyebrow from '../primitives/Eyebrow.astro';
+import SectionHeading from '../primitives/SectionHeading.astro';
+import { packages } from '../../data/packages';
+---
+
+<section class="packs" id="packages">
+	<Wrap>
+		<Eyebrow>{packages.eyebrow}</Eyebrow>
+		<SectionHeading text={packages.heading} />
+		<p class="packs__note">{packages.lead}</p>
+
+		{/* Above 860px the cards behave as a hover/focus accordion: collapsed
+		    cards show the rotated name only; the expanded card reveals the
+		    package detail. Cards carry tabindex so keyboard users can expand
+		    them too. Below 860px every card is a fully open stacked block. */}
+		<div class="grid">
+			{
+				packages.packages.map((pkg, i) => (
+					<article class="card" tabindex="0">
+						<h3 class="card__name">{pkg.title}</h3>
+						<span class="card__num" aria-hidden="true">{String(i + 1).padStart(2, '0')}</span>
+						<div class="card__detail">
+							<p class="card__kicker" aria-hidden="true">
+								<span>{String(i + 1).padStart(2, '0')}</span>
+								{pkg.title}
+							</p>
+							<ul class="card__items">
+								{pkg.items.map((item) => (
+									<li>
+										<a class="card__link" href={item.href}>
+											<span class="card__label">{item.label}</span>
+											<span class="card__arrow" aria-hidden="true">↗</span>
+										</a>
+									</li>
+								))}
+							</ul>
+							<p class="card__body">{pkg.body}</p>
+							<p class="card__price">
+								{pkg.price} — {pkg.cadence}
+							</p>
+						</div>
+					</article>
+				))
+			}
+		</div>
+	</Wrap>
+</section>
+
+<style>
+	.packs {
+		padding-top: var(--sect);
+		padding-bottom: clamp(2rem, 5vw, 4rem);
+		--heading-size: var(--fs-h2);
+		--heading-measure: 18ch;
+		--heading-tracking: -0.035em;
+		--heading-leading: 1.08;
+		--heading-gap: var(--space-md);
+	}
+	.packs__note {
+		margin-top: 1.2rem;
+		max-width: var(--measure);
+		font-size: var(--fs-lead);
+		color: var(--ink-soft);
+	}
+
+	/* Mobile-first: stacked, always-open cards with horizontal names.
+	   Vertical rotated names apply only above 860px — never on mobile. */
+	.grid {
+		margin-top: clamp(2.5rem, 5vw, 4rem);
+		display: grid;
+		grid-template-columns: 1fr;
+		gap: 1rem;
+	}
+	.card {
+		position: relative;
+		display: flex;
+		flex-direction: column;
+		padding: 1.9rem 1.4rem;
+		border: 1px solid var(--rule);
+		border-radius: 1.25rem;
+	}
+	.card__name {
+		margin: 0;
+		font-size: var(--fs-card-name-flat);
+		font-weight: 650;
+		letter-spacing: -0.03em;
+		line-height: 1;
+	}
+	.card__num {
+		order: -1;
+		margin-bottom: 0.8rem;
+		font-size: var(--fs-2xs);
+		font-weight: 600;
+		letter-spacing: 0.06em;
+		color: var(--grey);
+	}
+	.card__kicker {
+		display: none;
+	}
+	/* Service rows, per the reference: bold label left, ↗ right, hairline
+	   rules between rows. Hovering a row indents the label and fills the
+	   arrow with ink. */
+	.card__items {
+		list-style: none;
+		margin: 1.4rem 0 0;
+		padding: 0;
+	}
+	.card__items li {
+		border-bottom: 1px solid var(--rule);
+	}
+	.card__link {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--space-xs);
+		padding-block: 0.7rem;
+		font-size: clamp(1rem, 1.45vw, 1.3rem);
+		font-weight: 700;
+		letter-spacing: -0.02em;
+		line-height: 1.25;
+		text-decoration: none;
+	}
+	.card__label {
+		transition: transform 0.25s cubic-bezier(0.33, 1, 0.68, 1);
+	}
+	.card__arrow {
+		flex: none;
+		font-size: 0.95em;
+		line-height: 1;
+		color: var(--ghost-stroke);
+		transition:
+			color 0.25s ease,
+			transform 0.25s cubic-bezier(0.33, 1, 0.68, 1);
+	}
+	.card__link:hover .card__label,
+	.card__link:focus-visible .card__label {
+		transform: translateX(0.6rem);
+	}
+	.card__link:hover .card__arrow,
+	.card__link:focus-visible .card__arrow {
+		color: var(--ink);
+		transform: scale(1.12);
+	}
+	.card__body {
+		margin-top: 1.2rem;
+		font-size: var(--fs-xs);
+		line-height: 1.6;
+		color: var(--ink-soft);
+	}
+	.card__price {
+		margin-top: 0.9rem;
+		font-size: var(--fs-nav);
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.1em;
+	}
+
+	@media (min-width: 861px) {
+		.grid {
+			display: flex;
+			gap: 1rem;
+		}
+		.card {
+			overflow: hidden;
+			flex: 1 1 0;
+			justify-content: space-between;
+			/* tall enough for the longest package's detail layer (9 items +
+			   body + price) — the layer is absolute, so it can't grow the card */
+			min-height: 44rem;
+			padding: 2rem 1.6rem 1.7rem;
+			transition:
+				flex-grow 0.5s cubic-bezier(0.55, 0, 0.15, 1),
+				background-color 0.5s ease,
+				border-color 0.5s ease;
+		}
+		.card__name {
+			writing-mode: vertical-rl;
+			transform: rotate(180deg);
+			margin-block: auto;
+			font-size: var(--fs-card-name);
+			transition: opacity 0.2s ease;
+		}
+		.card__num {
+			order: 0;
+			margin-bottom: 0;
+			transition: opacity 0.2s ease;
+		}
+		/* Fixed-width detail layer: the card animates around it, so the text
+		   never rewraps mid-transition — it just unclips. The extra left
+		   padding is the gutter the kicker's number hangs into, so the
+		   heading and the service rows share a left edge (per the
+		   reference). */
+		.card__detail {
+			position: absolute;
+			top: 0;
+			left: 0;
+			height: 100%;
+			width: clamp(22rem, 40vw, 36rem);
+			display: flex;
+			flex-direction: column;
+			padding: 2rem 1.6rem 1.7rem 3.4rem;
+			opacity: 0;
+			visibility: hidden;
+			transition:
+				opacity 0.25s ease,
+				visibility 0s linear 0.25s;
+		}
+		.card__kicker {
+			display: flex;
+			align-items: baseline;
+			gap: 0.6rem;
+			margin: 0 0 0 -1.8rem;
+			padding-bottom: 1rem;
+			font-family: var(--font-display);
+			font-size: var(--fs-h2);
+			font-weight: 700;
+			letter-spacing: -0.035em;
+			line-height: 1.1;
+		}
+		.card__kicker span {
+			flex: none;
+			width: 1.2rem;
+			font-family: var(--font-body);
+			font-size: var(--fs-2xs);
+			font-weight: 600;
+			letter-spacing: 0.06em;
+			color: var(--grey);
+		}
+		.card__items {
+			margin-top: 0;
+		}
+		.card__items li:first-child {
+			border-top: 1px solid var(--rule);
+		}
+		.card__body {
+			margin-top: auto;
+			padding-top: 1.4rem;
+		}
+
+		/* Expanded state — pointer hover or keyboard focus. */
+		.card:hover,
+		.card:focus-within {
+			flex-grow: 4.2;
+			background: var(--bone);
+			border-color: transparent;
+		}
+		.card:hover .card__name,
+		.card:focus-within .card__name,
+		.card:hover .card__num,
+		.card:focus-within .card__num {
+			opacity: 0;
+		}
+		.card:hover .card__detail,
+		.card:focus-within .card__detail {
+			opacity: 1;
+			visibility: visible;
+			transition: opacity 0.35s ease 0.12s;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.card,
+		.card__name,
+		.card__num,
+		.card__detail,
+		.card__label,
+		.card__arrow {
+			transition: none;
+		}
+		.card__link:hover .card__label,
+		.card__link:focus-visible .card__label,
+		.card__link:hover .card__arrow,
+		.card__link:focus-visible .card__arrow {
+			transform: none;
+		}
+	}
+</style>

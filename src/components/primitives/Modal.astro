@@ -1,0 +1,284 @@
+---
+// Reusable modal dialog in two presentations: a centred 'popup' card and a
+// right-hand 'slide-over' panel. Built on the native <dialog> element, so
+// the browser provides the semantics, the top layer, Escape-to-close,
+// focus containment (the page behind a modal dialog is inert) and initial
+// focus; the script below adds backdrop-click close, opener focus restore
+// and open triggers. Content is whatever the slot carries — forms, wizard
+// steps, supporting copy — nothing form-specific lives here.
+//
+// Opening and closing:
+//   - Declarative: any element with data-modal-open="<id>" opens that
+//     modal; anything inside carrying data-modal-close closes it. The
+//     backdrop and Escape close it too.
+//   - Programmatic (controlled use): the element IS the state —
+//     document.getElementById(id).showModal() / .close(), plus the native
+//     'close' event to observe it. A <form method="dialog"> inside also
+//     closes on submit, which suits wizard steps.
+//
+// Size is driven by an inherited custom property, per project convention:
+//   --modal-width  (popup default min(34rem, 100% - gutters);
+//                   slide-over default min(30rem, 100%))
+//
+// Page scroll locks while any modal is open (global :has rule below).
+// Enter/exit ride transform/opacity only, via @starting-style +
+// transition-behavior: allow-discrete; browsers without those simply open
+// and close instantly. Under prefers-reduced-motion all transitions are
+// disabled. Multiple instances coexist — ids are unique by contract and
+// the script wires every instance through one set of delegated listeners.
+interface Props {
+	/** Unique per page instance; open triggers target this id. */
+	id: string;
+	/** Presentation: centred card or right-hand panel. */
+	type?: 'popup' | 'slide-over';
+	/** Visible heading; doubles as the dialog's accessible name. */
+	title?: string;
+	/** Muted supporting line under the title; wired to aria-describedby. */
+	description?: string;
+	/** Accessible name for a modal with no visible title. */
+	label?: string;
+	/** Accessible name of the close button. */
+	closeLabel?: string;
+	class?: string;
+}
+const {
+	id,
+	type = 'popup',
+	title,
+	description,
+	label,
+	closeLabel = 'Close',
+	class: className,
+} = Astro.props;
+---
+
+<dialog
+	class:list={['modal', `modal--${type}`, className]}
+	id={id}
+	aria-labelledby={title ? `${id}-title` : undefined}
+	aria-label={!title ? label : undefined}
+	aria-describedby={description ? `${id}-desc` : undefined}
+>
+	<button class="modal__close" type="button" data-modal-close aria-label={closeLabel}>
+		<svg aria-hidden="true" viewBox="0 0 14 14" fill="none">
+			<path d="M1 1l12 12M13 1L1 13" stroke="currentColor" stroke-width="1.5"></path>
+		</svg>
+	</button>
+
+	<div class="modal__panel">
+		{
+			(title || description) && (
+				<header class="modal__head">
+					{title && (
+						<h2 class="modal__title" id={`${id}-title`}>
+							{title}
+						</h2>
+					)}
+					{description && (
+						<p class="modal__desc" id={`${id}-desc`}>
+							{description}
+						</p>
+					)}
+				</header>
+			)
+		}
+		<div class="modal__body"><slot /></div>
+	</div>
+</dialog>
+
+<script>
+	// Runs once per page (Astro hoists and dedupes component scripts); every
+	// modal instance is wired through these delegated listeners.
+	const openers = new WeakMap<HTMLDialogElement, HTMLElement>();
+
+	document.addEventListener('click', (e) => {
+		const target = e.target instanceof Element ? e.target : null;
+		if (!target) return;
+
+		const opener = target.closest<HTMLElement>('[data-modal-open]');
+		if (opener) {
+			const dialog = document.getElementById(opener.dataset.modalOpen ?? '');
+			if (dialog instanceof HTMLDialogElement && !dialog.open) {
+				// Triggers may be links with a real no-JS fallback href — the
+				// modal replaces that navigation, not adds to it.
+				e.preventDefault();
+				openers.set(dialog, opener);
+				dialog.showModal();
+			}
+			return;
+		}
+
+		const closer = target.closest('[data-modal-close]');
+		if (closer) {
+			closer.closest('dialog')?.close();
+			return;
+		}
+
+		// Clicks on the ::backdrop (and only there — the panel fills the
+		// dialog box, so inner clicks target descendants) hit the dialog
+		// element itself.
+		if (target instanceof HTMLDialogElement && target.classList.contains('modal')) {
+			target.close();
+		}
+	});
+
+	// Return focus to the trigger. Browsers restore focus to the previously
+	// focused element on close; being explicit covers openers focused via
+	// script and DOM that moved meanwhile. 'close' does not bubble — capture.
+	document.addEventListener(
+		'close',
+		(e) => {
+			if (e.target instanceof HTMLDialogElement && e.target.classList.contains('modal')) {
+				const opener = openers.get(e.target);
+				if (opener?.isConnected) opener.focus();
+			}
+		},
+		true
+	);
+</script>
+
+<style>
+	.modal {
+		border: 0;
+		padding: 0;
+		background: var(--bg);
+		color: var(--ink);
+		overflow: hidden;
+	}
+	.modal::backdrop {
+		background: var(--scrim);
+	}
+
+	/* ---------- popup: centred card ---------- */
+	.modal--popup {
+		margin: auto;
+		width: var(--modal-width, min(34rem, calc(100% - 2 * var(--pad))));
+		border-radius: 1.25rem;
+	}
+	.modal--popup .modal__panel {
+		max-height: min(85dvh, 46rem);
+	}
+
+	/* ---------- slide-over: right-hand panel ---------- */
+	.modal--slide-over {
+		margin: 0 0 0 auto;
+		width: var(--modal-width, min(30rem, 100%));
+		/* lift the UA dialog size caps so the panel can reach the edges */
+		max-width: 100%;
+		height: 100dvh;
+		max-height: 100dvh;
+		border-radius: 1.25rem 0 0 1.25rem;
+	}
+	.modal--slide-over .modal__panel {
+		height: 100%;
+	}
+	@media (max-width: 480px) {
+		.modal--slide-over {
+			border-radius: 0;
+		}
+	}
+
+	/* ---------- panel ---------- */
+	.modal__panel {
+		overflow-y: auto;
+		padding: clamp(1.6rem, 3vw, 2.5rem);
+	}
+	.modal__close {
+		position: absolute;
+		top: 1.1rem;
+		right: 1.1rem;
+		z-index: 1;
+		display: grid;
+		place-items: center;
+		width: 2.25rem;
+		height: 2.25rem;
+		padding: 0;
+		border: 1px solid var(--rule);
+		border-radius: 50%;
+		background: var(--bg);
+		color: var(--ink);
+		cursor: pointer;
+		transition: border-color 0.2s ease;
+	}
+	.modal__close:hover {
+		border-color: var(--ink);
+	}
+	.modal__close svg {
+		width: 0.8rem;
+		height: 0.8rem;
+	}
+	.modal__head {
+		/* keep the first line clear of the close button */
+		padding-right: 2.5rem;
+		margin-bottom: var(--space-md);
+	}
+	.modal__title {
+		font-size: var(--fs-h2-sm);
+	}
+	.modal__desc {
+		margin-top: 0.6rem;
+		font-size: var(--fs-note);
+		line-height: 1.6;
+		color: var(--ink-soft);
+	}
+
+	/* ---------- enter/exit ---------- */
+	/* Exit-target values live on the base selector; [open] is the resting
+	   open state; @starting-style supplies the enter-from frame. display
+	   and overlay transition discretely so the dialog stays in the top
+	   layer until the exit motion finishes. */
+	.modal,
+	.modal::backdrop {
+		transition:
+			opacity 0.4s cubic-bezier(0.3, 0, 0.2, 1),
+			transform 0.4s cubic-bezier(0.3, 0, 0.2, 1),
+			display 0.4s allow-discrete,
+			overlay 0.4s allow-discrete;
+	}
+	.modal::backdrop {
+		opacity: 0;
+	}
+	.modal[open]::backdrop {
+		opacity: 1;
+	}
+	.modal--popup {
+		opacity: 0;
+		transform: translateY(0.75rem) scale(0.97);
+	}
+	.modal--popup[open] {
+		opacity: 1;
+		transform: none;
+	}
+	.modal--slide-over {
+		transform: translateX(100%);
+	}
+	.modal--slide-over[open] {
+		transform: none;
+	}
+	@starting-style {
+		.modal[open]::backdrop {
+			opacity: 0;
+		}
+		.modal--popup[open] {
+			opacity: 0;
+			transform: translateY(0.75rem) scale(0.97);
+		}
+		.modal--slide-over[open] {
+			transform: translateX(100%);
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.modal,
+		.modal::backdrop {
+			transition: none;
+		}
+	}
+</style>
+
+<style is:global>
+	/* Lock page scroll behind any open modal. */
+	body:has(dialog.modal[open]) {
+		overflow: hidden;
+	}
+</style>

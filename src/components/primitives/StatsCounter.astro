@@ -1,0 +1,159 @@
+---
+// Bordered stat band: equal columns divided by hairlines, a large mono
+// figure per cell and a muted caption beneath. Every numeric run inside a
+// figure counts up from 0 when the band enters the viewport — '70 → 8'
+// animates both numbers — easing out to land exactly on the target. The
+// count runs once per instance, does nothing while off-screen, and is
+// skipped entirely (final values render as-is) without JavaScript or under
+// prefers-reduced-motion. Screen readers always get the finished figure;
+// the animated copy is aria-hidden.
+import type { Fact } from '../../types/content';
+
+interface Props {
+	stats: Fact[];
+}
+
+const { stats } = Astro.props;
+
+/** Split a figure into static text and countable number segments. */
+const segments = (figure: string) =>
+	figure
+		.split(/(\d+(?:\.\d+)?)/)
+		.filter((part) => part !== '')
+		.map((part) => ({
+			text: part,
+			numeric: /^\d/.test(part),
+			decimals: part.includes('.') ? part.split('.')[1].length : 0,
+		}));
+---
+
+<div class="stats" style={`--stats-n: ${stats.length}`}>
+	{
+		stats.map((fact) => (
+			<div class="stats__cell">
+				<b class="stats__figure">
+					<span class="visually-hidden">{fact.figure}</span>
+					<span aria-hidden="true">
+						{segments(fact.figure).map((part) =>
+							part.numeric ? (
+								<span
+									class="stats__count"
+									data-value={part.text}
+									data-decimals={part.decimals}
+									style={`min-width: ${part.text.length}ch`}
+								>
+									{part.text}
+								</span>
+							) : (
+								part.text
+							)
+						)}
+					</span>
+				</b>
+				<p class="stats__label">{fact.detail}</p>
+				{fact.source && <cite class="stats__source">{fact.source}</cite>}
+			</div>
+		))
+	}
+</div>
+
+<script>
+	const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+	if (!reduced) {
+		const DURATION = 1500;
+		const ease = (t: number) => 1 - (1 - t) ** 4;
+		const io = new IntersectionObserver(
+			(entries) => {
+				for (const entry of entries) {
+					if (!entry.isIntersecting) continue;
+					io.unobserve(entry.target);
+					for (const el of entry.target.querySelectorAll<HTMLElement>('.stats__count')) {
+						const value = parseFloat(el.dataset.value ?? '0');
+						const decimals = parseInt(el.dataset.decimals ?? '0', 10);
+						let start: number | undefined;
+						const step = (now: number) => {
+							start ??= now;
+							const p = Math.min(1, (now - start) / DURATION);
+							el.textContent = (value * ease(p)).toFixed(decimals);
+							if (p < 1) requestAnimationFrame(step);
+						};
+						el.textContent = (0).toFixed(decimals);
+						requestAnimationFrame(step);
+					}
+				}
+			},
+			{ threshold: 0.35 }
+		);
+		document.querySelectorAll('.stats').forEach((el) => io.observe(el));
+	}
+</script>
+
+<style>
+	.stats {
+		display: grid;
+		grid-template-columns: repeat(var(--stats-n, 4), 1fr);
+		border: 1px solid var(--rule);
+		border-radius: 1.25rem;
+	}
+	.stats__cell {
+		padding: clamp(2.5rem, 3.4vw, 3.6rem) 1.5rem clamp(3.5rem, 5.5vw, 5.75rem);
+		text-align: center;
+	}
+	.stats__cell + .stats__cell {
+		border-left: 1px solid var(--rule);
+	}
+	.stats__figure {
+		display: block;
+		font-family: var(--font-mono);
+		font-size: clamp(2.6rem, 5.15vw, 6rem);
+		font-weight: 700;
+		line-height: 1;
+		letter-spacing: -0.02em;
+	}
+	.stats__count {
+		display: inline-block;
+		text-align: right;
+		font-variant-numeric: tabular-nums;
+	}
+	.stats__label {
+		margin: 1.1rem auto 0;
+		max-width: 18ch;
+		font-size: var(--fs-xs);
+		line-height: 1.55;
+		color: var(--grey);
+	}
+	.stats__source {
+		display: block;
+		margin-top: 0.6rem;
+		font-style: normal;
+		font-size: var(--fs-cite);
+		text-transform: uppercase;
+		letter-spacing: 0.1em;
+		color: var(--grey);
+	}
+	@media (max-width: 64em) {
+		.stats {
+			grid-template-columns: 1fr 1fr;
+		}
+		.stats__cell + .stats__cell {
+			border-left: none;
+		}
+		.stats__cell:nth-child(even) {
+			border-left: 1px solid var(--rule);
+		}
+		.stats__cell:nth-child(n + 3) {
+			border-top: 1px solid var(--rule);
+		}
+	}
+	@media (max-width: 40em) {
+		.stats {
+			grid-template-columns: 1fr;
+		}
+		.stats__cell:nth-child(even) {
+			border-left: none;
+		}
+		.stats__cell + .stats__cell {
+			border-top: 1px solid var(--rule);
+		}
+	}
+</style>

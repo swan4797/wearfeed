@@ -1,0 +1,74 @@
+---
+// Rotating circular text badge. The ring caption is decorative (repeated and
+// aria-hidden); `label` is the link's accessible name. Ink colour and size are
+// driven by inherited custom properties: --badge-ink, --badge-size.
+// The spin is CSS-only and disabled under prefers-reduced-motion.
+interface Props {
+	href: string;
+	label: string;
+	/** Ring caption, repeated around the circle. */
+	ring: string;
+	/** How many times the caption repeats — tune to the caption's length. */
+	repeat?: number;
+	arrow?: string;
+	/** Unique per page instance; namespaces the SVG path id. */
+	id: string;
+	/** Modal id to open on click; `href` stays the no-JS fallback. */
+	modal?: string;
+}
+const { href, label, ring, repeat = 3, arrow = '↓', id, modal } = Astro.props;
+const ringCopy = `${Array.from({ length: repeat }, () => ring).join(' · ')} · `;
+const pathId = `badge-ring-${id}`;
+---
+
+<a class="badge" href={href} aria-label={label} data-modal-open={modal}>
+	<svg viewBox="0 0 100 100" aria-hidden="true">
+		<defs>
+			<path
+				id={pathId}
+				d="M50,50 m-37,0 a37,37 0 1,1 74,0 a37,37 0 1,1 -74,0"></path>
+		</defs>
+		<text><textPath href={`#${pathId}`} startOffset="0%">{ringCopy}</textPath></text>
+	</svg>
+	<span class="badge__arrow" aria-hidden="true">{arrow}</span>
+</a>
+
+<style>
+	.badge {
+		position: relative;
+		width: var(--badge-size, clamp(6.5rem, 13vw, 12.5rem));
+		height: var(--badge-size, clamp(6.5rem, 13vw, 12.5rem));
+		display: grid;
+		place-items: center;
+		text-decoration: none;
+	}
+	.badge svg {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		animation: spin 22s linear infinite;
+	}
+	.badge text {
+		font-size: var(--fs-badge-ring);
+		font-weight: 600;
+		letter-spacing: 0.24em;
+		text-transform: uppercase;
+		fill: var(--badge-ink, var(--ink));
+	}
+	.badge__arrow {
+		font-size: var(--fs-badge-arrow);
+		line-height: 1;
+		color: var(--badge-ink, var(--ink));
+	}
+	@keyframes spin {
+		to {
+			transform: rotate(360deg);
+		}
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.badge svg {
+			animation: none;
+		}
+	}
+</style>

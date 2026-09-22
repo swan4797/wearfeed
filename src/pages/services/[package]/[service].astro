@@ -1,0 +1,128 @@
+---
+// One page per service: hero (package label, service name, summary, CTA
+// into the contact modal), intro-text body (problem / what we do / what
+// you get), then the package's other services as ruled rows. Prerendered.
+export const prerender = true;
+
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import TopBar from '../../../components/sections/TopBar.astro';
+import Hero from '../../../components/sections/Hero.astro';
+import IntroText from '../../../components/sections/IntroText.astro';
+import Footer from '../../../components/sections/Footer.astro';
+import Modal from '../../../components/primitives/Modal.astro';
+import ContactForm from '../../../components/primitives/ContactForm.astro';
+import Breadcrumb from '../../../components/primitives/Breadcrumb.astro';
+import Wrap from '../../../components/primitives/Wrap.astro';
+import Eyebrow from '../../../components/primitives/Eyebrow.astro';
+import LinkRows from '../../../components/primitives/LinkRows.astro';
+import { getImage } from 'astro:assets';
+import { servicePackages, packageHref, serviceHref } from '../../../data/services';
+import type { Service, ServicePackage } from '../../../types/content';
+
+export function getStaticPaths() {
+	return servicePackages.flatMap((pkg) =>
+		pkg.services.map((service) => ({
+			params: { package: pkg.slug, service: service.slug },
+			props: { pkg, service },
+		}))
+	);
+}
+
+interface Props {
+	pkg: ServicePackage;
+	service: Service;
+}
+const { pkg, service } = Astro.props;
+const label = `${pkg.number} — ${pkg.title}`;
+const siblings = pkg.services.filter((s) => s.slug !== service.slug);
+const heroImage = await getImage({
+	src: service.image ?? pkg.image,
+	width: 1920,
+	format: 'webp',
+});
+---
+
+<BaseLayout title={service.seoTitle} description={service.seoDescription}>
+	<TopBar />
+	<main id="main">
+		<div class="top">
+			<Hero
+				content={{
+					eyebrow: label,
+					h1: service.title,
+					sub: service.summary,
+					cta: {
+						label: 'Book a visit',
+						href: '#contact',
+						aside: '',
+						modal: 'contact-modal',
+					},
+				}}
+				background={{ type: 'image', src: heroImage.src }}
+				headingAs="h1"
+				headingPosition="bottom"
+			/>
+		</div>
+
+		<div class="crumb-band">
+			<Wrap>
+				<Breadcrumb
+					items={[
+						{ label: 'Services', href: '/#packages' },
+						{ label, href: packageHref(pkg) },
+						{ label: service.title },
+					]}
+				/>
+			</Wrap>
+		</div>
+
+		<IntroText
+			content={{
+				eyebrow: 'The work',
+				heading: service.statement,
+				blocks: service.blocks,
+			}}
+		/>
+
+		<section class="others">
+			<Wrap>
+				<Eyebrow>Other services in this package</Eyebrow>
+				<div class="others__rows">
+					<LinkRows
+						rows={siblings.map((s) => ({
+							label: s.title,
+							href: serviceHref(pkg, s),
+						}))}
+					/>
+				</div>
+			</Wrap>
+		</section>
+	</main>
+	<Footer />
+
+	<Modal id="contact-modal" type="slide-over" label="Contact">
+		<ContactForm />
+	</Modal>
+</BaseLayout>
+
+<style>
+	/* Service names run long — step the hero heading down from the
+	   landing's display size; the hero's own masthead clearance and the
+	   locked-screen transition behave as on the landing page. */
+	.top :global(.hero__intro) {
+		--heading-size: var(--fs-contact);
+		--heading-measure: 24ch;
+	}
+
+	.crumb-band {
+		padding-top: clamp(1.5rem, 3vw, 2.5rem);
+	}
+
+	.others {
+		padding-bottom: var(--sect-sm);
+	}
+	.others__rows {
+		margin-top: var(--space-md);
+		max-width: 52rem;
+	}
+</style>

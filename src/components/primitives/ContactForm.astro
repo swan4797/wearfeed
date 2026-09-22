@@ -1,0 +1,319 @@
+---
+// Contact enquiry form, built to sit inside the Modal slide-over:
+//
+//   <Modal id="contact-modal" type="slide-over" label="Contact">
+//     <ContactForm />
+//   </Modal>
+//
+// It brings no overlay behaviour of its own — open/close, backdrop, focus
+// and scroll locking all belong to Modal — and works just as well in any
+// other container. Submission goes to the `contact` Astro Action
+// (src/actions/index.ts): the script below intercepts submit, posts the
+// FormData without a page reload, and renders one of three states in
+// place — per-field validation errors (wired via aria-invalid /
+// aria-describedby), a general failure alert, or the success panel, which
+// replaces the form and carries a data-modal-close button so the Modal's
+// own machinery closes it. Native browser validation (required,
+// type="email") runs first; the action's Zod schema is the layer of
+// record. A visually-hidden honeypot field filters bots server-side.
+// While a submission is in flight the button flips to its sending label
+// and further submits are ignored — aria-disabled rather than disabled,
+// so keyboard focus doesn't jump mid-flight.
+interface Props {
+	/** Unique per page instance; namespaces field ids. */
+	id?: string;
+	title?: string;
+	description?: string;
+	submitLabel?: string;
+	/** Button label while the submission is in flight. */
+	sendingLabel?: string;
+	/** General alert shown when the server fails unexpectedly. */
+	errorText?: string;
+	successTitle?: string;
+	successBody?: string;
+	/** Label of the close button in the success state. */
+	closeLabel?: string;
+}
+const {
+	id = 'contact-form',
+	title = 'Get in touch',
+	description = 'Tell us a little about the restaurant and what you need.',
+	submitLabel = 'Send enquiry',
+	sendingLabel = 'Sending…',
+	errorText = 'Something went wrong and your message was not sent. Please try again.',
+	successTitle = 'Message sent',
+	successBody = "Thanks for getting in touch. We'll be in contact shortly.",
+	closeLabel = 'Close',
+} = Astro.props;
+
+const fields = [
+	{ key: 'name', label: 'Name', type: 'text', autocomplete: 'name', required: true },
+	{ key: 'email', label: 'Email', type: 'email', autocomplete: 'email', required: true },
+	{
+		key: 'company',
+		label: 'Company / Organisation',
+		type: 'text',
+		autocomplete: 'organization',
+		required: false,
+	},
+	{ key: 'phone', label: 'Phone', type: 'tel', autocomplete: 'tel', required: false },
+] as const;
+---
+
+<div class="cform" id={id}>
+	<form class="cform__form" aria-busy="false">
+		<header class="cform__head">
+			<h2 class="cform__title">{title}</h2>
+			{description && <p class="cform__desc">{description}</p>}
+		</header>
+
+		{
+			fields.map((field) => (
+				<div class="cform__field">
+					<label class="cform__label" for={`${id}-${field.key}`}>
+						{field.label}
+						{!field.required && <span class="cform__opt">Optional</span>}
+					</label>
+					<input
+						class="cform__input"
+						id={`${id}-${field.key}`}
+						name={field.key}
+						type={field.type}
+						autocomplete={field.autocomplete}
+						required={field.required}
+					/>
+					<p class="cform__err" id={`${id}-${field.key}-err`} hidden />
+				</div>
+			))
+		}
+
+		<div class="cform__field">
+			<label class="cform__label" for={`${id}-message`}>Message</label>
+			<textarea class="cform__input" id={`${id}-message`} name="message" rows="5" required
+			></textarea>
+			<p class="cform__err" id={`${id}-message-err`} hidden></p>
+		</div>
+
+		{/* Honeypot — hidden from people, tempting to bots. */}
+		<div class="cform__hp" aria-hidden="true">
+			<label for={`${id}-website`}>Website</label>
+			<input id={`${id}-website`} name="website" type="text" tabindex="-1" autocomplete="off" />
+		</div>
+
+		<p class="cform__alert" role="alert" hidden>{errorText}</p>
+
+		<button class="cform__submit" type="submit" data-sending-label={sendingLabel}>
+			<span class="cform__submit-label">{submitLabel}</span>
+			<span aria-hidden="true">→</span>
+		</button>
+	</form>
+
+	<div class="cform__done" hidden>
+		<h2 class="cform__title" tabindex="-1">{successTitle}</h2>
+		<p class="cform__desc">{successBody}</p>
+		<button class="cform__submit cform__done-close" type="button" data-modal-close>
+			{closeLabel}
+		</button>
+	</div>
+</div>
+
+<script>
+	import { actions, isInputError } from 'astro:actions';
+
+	const setFieldError = (form: HTMLFormElement, name: string, messages?: string[]) => {
+		const input = form.elements.namedItem(name);
+		const err = form.querySelector<HTMLElement>(`#${form.closest('.cform')?.id}-${name}-err`);
+		if (!(input instanceof HTMLElement) || !err) return;
+		if (messages?.length) {
+			input.setAttribute('aria-invalid', 'true');
+			input.setAttribute('aria-describedby', err.id);
+			err.textContent = messages.join(' ');
+			err.hidden = false;
+		} else {
+			input.removeAttribute('aria-invalid');
+			input.removeAttribute('aria-describedby');
+			err.hidden = true;
+		}
+	};
+
+	document.querySelectorAll<HTMLFormElement>('.cform .cform__form').forEach((form) => {
+		const root = form.closest<HTMLElement>('.cform')!;
+		const alert = form.querySelector<HTMLElement>('.cform__alert')!;
+		const button = form.querySelector<HTMLButtonElement>('.cform__submit')!;
+		const label = button.querySelector<HTMLElement>('.cform__submit-label')!;
+		const idleLabel = label.textContent;
+		const fieldNames = ['name', 'email', 'company', 'phone', 'message'];
+
+		// A field edit clears its own stale error.
+		form.addEventListener('input', (e) => {
+			const name = (e.target as HTMLInputElement).name;
+			if (fieldNames.includes(name)) setFieldError(form, name, undefined);
+		});
+
+		form.addEventListener('submit', async (e) => {
+			e.preventDefault();
+			if (form.getAttribute('aria-busy') === 'true') return; // no double sends
+
+			form.setAttribute('aria-busy', 'true');
+			button.setAttribute('aria-disabled', 'true');
+			label.textContent = button.dataset.sendingLabel ?? idleLabel;
+			alert.hidden = true;
+			fieldNames.forEach((name) => setFieldError(form, name, undefined));
+
+			try {
+				const { error } = await actions.contact(new FormData(form));
+				if (!error) {
+					form.reset();
+					form.hidden = true;
+					const done = root.querySelector<HTMLElement>('.cform__done')!;
+					done.hidden = false;
+					// Next frame: hiding the form knocks focus loose, and the
+					// browser's own fixup would otherwise land after (and undo)
+					// a synchronous focus() here.
+					requestAnimationFrame(() =>
+						done.querySelector<HTMLElement>('.cform__title')?.focus()
+					);
+				} else if (isInputError(error)) {
+					const entries = Object.entries(error.fields) as [string, string[]][];
+					entries.forEach(([name, messages]) => setFieldError(form, name, messages));
+					// Send focus to the first field that needs attention.
+					const first = entries[0]?.[0];
+					const input = first && form.elements.namedItem(first);
+					if (input instanceof HTMLElement) input.focus();
+				} else {
+					alert.hidden = false;
+				}
+			} catch {
+				alert.hidden = false;
+			} finally {
+				form.setAttribute('aria-busy', 'false');
+				button.removeAttribute('aria-disabled');
+				label.textContent = idleLabel;
+			}
+		});
+	});
+</script>
+
+<style>
+	.cform__head {
+		/* clear the Modal's close button when used in the slide-over */
+		padding-right: 2.5rem;
+		margin-bottom: var(--space-lg);
+	}
+	.cform__title {
+		font-size: var(--fs-h2-sm);
+	}
+	.cform__desc {
+		margin-top: 0.6rem;
+		max-width: var(--measure);
+		font-size: var(--fs-note);
+		line-height: 1.6;
+		color: var(--ink-soft);
+	}
+
+	.cform__field + .cform__field {
+		margin-top: var(--space-sm);
+	}
+	.cform__label {
+		display: flex;
+		justify-content: space-between;
+		align-items: baseline;
+		gap: var(--space-xs);
+		font-size: var(--fs-eyebrow);
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.14em;
+		color: var(--grey);
+	}
+	.cform__opt {
+		font-weight: 500;
+		letter-spacing: 0.08em;
+		color: var(--grey);
+	}
+	.cform__input {
+		display: block;
+		width: 100%;
+		margin-top: 0.5rem;
+		padding: 0.75rem 0.9rem;
+		border: 1px solid var(--rule);
+		border-radius: 0.5rem;
+		background: var(--bg);
+		color: var(--ink);
+		font: inherit;
+		font-size: var(--fs-sm);
+		line-height: 1.5;
+		transition: border-color 0.2s ease;
+	}
+	textarea.cform__input {
+		resize: vertical;
+		min-height: 7rem;
+	}
+	.cform__input:focus-visible {
+		outline: none;
+		border-color: var(--ink);
+	}
+	.cform__input[aria-invalid='true'] {
+		border-color: var(--pen);
+	}
+	.cform__err {
+		margin-top: 0.45rem;
+		font-size: var(--fs-xs);
+		line-height: 1.5;
+		color: var(--pen);
+	}
+	.cform__alert {
+		margin-top: var(--space-md);
+		font-size: var(--fs-xs);
+		line-height: 1.5;
+		color: var(--pen);
+	}
+
+	.cform__hp {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+	}
+
+	.cform__submit {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.6rem;
+		margin-top: var(--space-lg);
+		padding: 0.85rem 1.5rem;
+		border: 1px solid var(--ink);
+		border-radius: 999px;
+		background: var(--ink);
+		color: var(--bg);
+		font-family: var(--font-body);
+		font-size: var(--fs-nav);
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.1em;
+		cursor: pointer;
+		transition:
+			background-color 0.2s ease,
+			color 0.2s ease;
+	}
+	.cform__submit:hover,
+	.cform__submit[aria-disabled='true'] {
+		background: var(--bg);
+		color: var(--ink);
+	}
+	.cform__submit[aria-disabled='true'] {
+		cursor: progress;
+	}
+
+	.cform__done-close {
+		margin-top: var(--space-md);
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.cform__input,
+		.cform__submit {
+			transition: none;
+		}
+	}
+</style>

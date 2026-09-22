@@ -1,0 +1,729 @@
+---
+// Consolidated hero — the intro copy (eyebrow, heading, CTA, badge) and the
+// marked-up menu panel, previously Hook.astro + MenuMarkup.astro.
+//
+// The document structure IS the original layout at all times: the intro
+// copy is one in-flow block, the panel is the next — two distinct stacked
+// layers, title above panel. Nothing is ever pinned, re-parented, hidden or
+// duplicated.
+//
+// Locked-screen transition (motion allowed, script running): on load the
+// backdrop paints the panel visual full-screen behind the copy. While the
+// page is at the top, the script at the bottom of this file intercepts
+// wheel/touch input — the page does not move; the gesture acts as a
+// TRIGGER, not a scrubber. One downward scroll intent plays a complete
+// fixed-duration, eased slide: the backdrop slides down into the real
+// panel's measured position, the copy flips light→ink as the edge passes,
+// and when the slide lands pixel-exact on the real panel the scroll lock
+// releases into ordinary scrolling. Scrolling up once the page is back at
+// the top triggers the same slide in reverse. Further scroll input while a
+// slide is running is swallowed — it never restarts, stacks or advances
+// the animation.
+//
+// Without JavaScript, or under prefers-reduced-motion, nothing locks and
+// the resting layout stands as-is.
+//
+// The panel background is the flat panel colour by default; pass
+// `background` for an image or a looping muted video. A scrim keeps the
+// copy readable over media — still choose media that stays calm and dark
+// behind text. Under prefers-reduced-motion the video yields to its poster.
+// The media block exists twice (backdrop + panel layer) so each paints its
+// own box; keep the two copies in sync.
+import Wrap from '../primitives/Wrap.astro';
+import Eyebrow from '../primitives/Eyebrow.astro';
+import SectionHeading from '../primitives/SectionHeading.astro';
+import RotatingBadge from '../primitives/RotatingBadge.astro';
+import type { Hero, HeroBackground, MenuSheet } from '../../types/content';
+
+/** Where the copy sits within the full-screen overlay state. */
+type HeadingPosition = 'bottom' | 'center';
+
+interface Props {
+	content: Hero;
+	/** The marked-up menu panel. Omit on inner pages — with a `background`
+	 * the hero renders a media-only panel below the intro instead, and the
+	 * locked-screen transition still engages against it. With neither
+	 * sheet nor background the hero is the intro layer only and the
+	 * script bails before adding any listeners. */
+	sheet?: MenuSheet;
+	/** Optional image or video behind the panel; omit for the flat colour. */
+	background?: HeroBackground;
+	/** Unique per instance — namespaces the rotating badge's SVG ids. */
+	id?: string;
+	/** The first hero keeps the page's h1; further instances pass 'h2'. */
+	headingAs?: 'h1' | 'h2';
+	/**
+	 * 'bottom' (default) anchors the copy toward the bottom of the overlay;
+	 * 'center' centres it vertically. Horizontal alignment is untouched
+	 * either way, and the copy travels to its natural stacked position as
+	 * the transition runs.
+	 */
+	headingPosition?: HeadingPosition;
+}
+const {
+	content,
+	sheet,
+	background,
+	id = 'hero',
+	headingAs = 'h1',
+	headingPosition = 'bottom',
+} = Astro.props;
+---
+
+<section class="hero" data-heading-pos={headingPosition}>
+	{(sheet || background) && (
+	<div class="hero__backdrop" aria-hidden="true">
+		{
+			background?.type === 'image' && (
+				<img src={background.src} alt="" loading="eager" decoding="async" />
+			)
+		}
+		{
+			background?.type === 'video' && (
+				<video
+					src={background.src}
+					poster={background.poster}
+					autoplay
+					muted
+					loop
+					playsinline
+					preload="metadata"
+				/>
+			)
+		}
+		{
+			background?.type === 'video' && background.poster && (
+				<img
+					class="hero__poster"
+					src={background.poster}
+					alt=""
+					loading="lazy"
+					decoding="async"
+				/>
+			)
+		}
+		{background && <div class="hero__scrim"></div>}
+	</div>
+	)}
+
+	<div class="hero__intro">
+		<Wrap>
+			<div class="hero__in">
+				<Eyebrow>{content.eyebrow}</Eyebrow>
+				<SectionHeading as={headingAs} text={content.h1} line2={content.h1Line2} />
+				<p class="hero__sub">{content.sub}</p>
+				<p class="hero__cta">
+					<a class="hero__link" href={content.cta.href} data-modal-open={content.cta.modal}
+						>{content.cta.label}</a
+					>
+				</p>
+				{
+					content.badge && (
+						<div class="hero__badge">
+							<RotatingBadge
+								id={id}
+								href={content.badge.href}
+								label={content.badge.label}
+								ring={content.badge.ring}
+								repeat={3}
+								arrow="↓"
+							/>
+						</div>
+					)
+				}
+			</div>
+		</Wrap>
+	</div>
+
+	{(sheet || background) && (
+	<div class="hero__show">
+		<div class="hero__layer" aria-hidden="true">
+			{
+				background?.type === 'image' && (
+					<img src={background.src} alt="" loading="eager" decoding="async" />
+				)
+			}
+			{
+				background?.type === 'video' && (
+					<video
+						src={background.src}
+						poster={background.poster}
+						autoplay
+						muted
+						loop
+						playsinline
+						preload="metadata"
+					/>
+				)
+			}
+			{
+				background?.type === 'video' && background.poster && (
+					<img
+						class="hero__poster"
+						src={background.poster}
+						alt=""
+						loading="lazy"
+						decoding="async"
+					/>
+				)
+			}
+			{background && <div class="hero__scrim"></div>}
+		</div>
+
+		{sheet && (
+		<div class="sheet">
+			<!-- A header, not a div: the .line divs must stay the only divs
+			     before the foot so :nth-of-type addresses them 1..3. -->
+			<header class="sheet__head">
+				<Eyebrow>{sheet.labels.sheet}</Eyebrow>
+				<Eyebrow>{sheet.labels.marked}</Eyebrow>
+			</header>
+
+			{
+				sheet.lines.map((line) => (
+					<div class="line">
+						<div class="dish">
+							<span class:list={[line.struck && 'struck']}>{line.dish}</span>
+							<span class:list={['dish__price', line.struck && 'struck']}>
+								{line.price}
+							</span>
+						</div>
+						<p class:list={['note', line.tone === 'good' && 'note--good']}>
+							{line.note}
+						</p>
+					</div>
+				))
+			}
+			<div class="sheet__foot">
+				<span>{sheet.foot.label}</span><em>{sheet.foot.total}</em>
+			</div>
+		</div>
+		)}
+	</div>
+	)}
+</section>
+
+<style>
+	/* ---------- resting layout ---------- */
+	/* The backdrop only exists for the locked transition. */
+	.hero__backdrop {
+		display: none;
+	}
+
+	.hero__intro {
+		padding-block: clamp(3rem, 9vw, 8rem);
+		--heading-size: var(--fs-hero);
+		--heading-weight: 700;
+		--heading-measure: 15ch;
+		--heading-tracking: -0.035em;
+		--heading-leading: 1.03;
+		--heading-gap: var(--space-md);
+	}
+	.hero__in {
+		position: relative;
+	}
+	.hero__sub {
+		margin-top: var(--space-md);
+		max-width: var(--measure);
+		font-size: var(--fs-lead);
+		line-height: 1.7;
+		color: var(--ink-soft);
+	}
+	.hero__cta {
+		margin-top: var(--space-xl);
+	}
+	.hero__link {
+		font-size: var(--fs-sm);
+		font-weight: 600;
+		text-underline-offset: 0.35em;
+		text-decoration-thickness: 1px;
+	}
+	.hero__aside {
+		margin-top: var(--space-2xs);
+		max-width: 25rem;
+		font-size: var(--fs-note);
+		color: var(--ink-soft);
+	}
+	.hero__badge {
+		position: absolute;
+		right: 0;
+		top: 50%;
+		transform: translateY(-60%);
+	}
+	@media (max-width: 760px) {
+		.hero__badge {
+			display: none;
+		}
+	}
+
+	/* The panel: background media in one layer, the sheet above it. Sized to
+	   fill most of the screen — a tall box rather than a content-hugging
+	   band — with the sheet centred in the extra room. */
+	.hero__show {
+		position: relative;
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		min-height: 88dvh;
+		margin-inline: var(--panel-inset);
+		padding: clamp(2.5rem, 6vw, 5.5rem) var(--pad);
+		color: var(--bg);
+		--eyebrow-color: var(--eyebrow-on-panel);
+	}
+	.hero__layer {
+		position: absolute;
+		inset: 0;
+		overflow: hidden;
+		background: var(--panel);
+		/* same corner treatment as the work-grid tiles */
+		border-radius: 1.2rem;
+	}
+	.hero__layer img,
+	.hero__layer video,
+	.hero__backdrop img,
+	.hero__backdrop video {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+	.hero__poster {
+		display: none;
+	}
+	.hero__scrim {
+		position: absolute;
+		inset: 0;
+		background: var(--scrim);
+	}
+
+	.sheet {
+		position: relative;
+		width: 100%;
+		max-width: var(--sheet-measure);
+		margin-inline: auto;
+	}
+	.sheet__head {
+		display: flex;
+		justify-content: space-between;
+		gap: var(--space-xs);
+		padding-bottom: 1.1rem;
+		border-bottom: 1px solid var(--rule-on-panel-strong);
+	}
+	.line {
+		padding-block: 1.25rem;
+		border-bottom: 1px solid var(--rule-on-panel);
+	}
+	.dish {
+		display: flex;
+		justify-content: space-between;
+		gap: var(--space-xs);
+		font-weight: 600;
+		font-size: var(--fs-dish);
+		letter-spacing: -0.01em;
+	}
+	.dish__price {
+		font-variant-numeric: tabular-nums;
+	}
+	.struck {
+		text-decoration: line-through;
+		text-decoration-color: var(--pen);
+		text-decoration-thickness: 2px;
+	}
+	.note {
+		margin-top: 0.5rem;
+		max-width: 40rem;
+		font-size: var(--fs-note);
+		font-weight: 500;
+		line-height: 1.5;
+		color: var(--pen-on-panel);
+	}
+	.note--good {
+		color: var(--good-on-panel);
+	}
+	.sheet__foot {
+		display: flex;
+		justify-content: space-between;
+		gap: var(--space-xs);
+		padding-top: 1.2rem;
+		font-weight: 700;
+		font-size: var(--fs-sm);
+	}
+	.sheet__foot em {
+		font-style: normal;
+		color: var(--pen-on-panel);
+		font-variant-numeric: tabular-nums;
+	}
+
+	.hero__caption {
+		padding-top: 1.4rem;
+		padding-bottom: clamp(3rem, 7vw, 6rem);
+	}
+	.hero__line {
+		margin-top: 0.5rem;
+		font-weight: 600;
+		font-size: var(--fs-caption);
+		letter-spacing: -0.015em;
+	}
+
+	/* Annotation reveal — the one narrative moment on the page. In the
+	   resting layout it runs on load; the scroll morph re-times it below. */
+	.note,
+	.sheet__foot {
+		animation: hero-mark 0.45s ease-out both;
+	}
+	.line:nth-of-type(1) .note {
+		animation-delay: 0.25s;
+	}
+	.line:nth-of-type(2) .note {
+		animation-delay: 0.6s;
+	}
+	.line:nth-of-type(3) .note {
+		animation-delay: 0.95s;
+	}
+	.sheet__foot {
+		animation-delay: 1.35s;
+	}
+	@keyframes hero-mark {
+		from {
+			opacity: 0;
+			transform: translateY(4px);
+		}
+		to {
+			opacity: 1;
+			transform: none;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.note,
+		.sheet__foot {
+			animation: none;
+		}
+		/* A moving background is motion too: swap the video for its poster.
+		   Without a poster the flat panel colour shows instead. */
+		.hero__layer video,
+		.hero__backdrop video {
+			display: none;
+		}
+		.hero__poster {
+			display: block;
+		}
+	}
+
+	/* Whenever the masthead is fixed (same gate as below, any width), the
+	   hero owns the clearance: its top padding keeps the copy below the
+	   overlaid bar without adding any layout space outside the hero. */
+	@supports ((animation-timeline: view()) and (timeline-scope: --t)) {
+		@media (prefers-reduced-motion: no-preference) {
+			.hero__intro {
+				padding-top: clamp(6.5rem, 11vw, 12rem);
+			}
+		}
+	}
+
+	/* ---------- locked-screen transition ---------- */
+	/* The page holds still while this runs: a small script intercepts wheel
+	   and touch input at the top of the page and treats it as a trigger —
+	   one gesture plays a complete fixed-duration, eased slide by animating
+	   a single progress value, --hero-p on <html>, through
+	   requestAnimationFrame. The animation runs on its own clock,
+	   independent of how far the user scrolls. This block only styles that
+	   progress.
+	
+	   The backdrop paints the panel visual full-screen at p=0, with the copy
+	   overlaid in its normal position. As p rises it slides DOWN by the seam
+	   distance (the real panel's measured offsetTop), its sides tuck in to
+	   the panel inset and its bottom clips to the panel's height, so at p=1
+	   it sits pixel-exact on the real panel's box and hands off invisibly —
+	   the page is simply the resting stacked layout at scroll 0, and native
+	   scrolling resumes. The copy flips light->ink as the backdrop's top
+	   edge passes beneath it; the eyebrow, aside and badge follow through
+	   currentColor. Everything rides transform, clip-path, colour and
+	   opacity — geometry is measured once (and on resize), never per frame.
+	   Without the script (or under prefers-reduced-motion, where it bails)
+	   none of this applies and the resting layout stands. */
+	:global(html[data-hero-lock]) .hero {
+		position: relative;
+	}
+	:global(html[data-hero-lock]) .hero__backdrop {
+		display: block;
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		height: 100dvh;
+		z-index: 1;
+		overflow: hidden;
+		background: var(--panel);
+		pointer-events: none;
+		transform: translateY(calc(var(--hero-p, 0) * var(--seam-px, 60dvh)));
+		/* corners round in as the panel shrinks, landing on the layer's
+		   resting radius at hand-off */
+		clip-path: inset(
+			0
+			calc(var(--hero-p, 0) * var(--side-px, 0px))
+			calc(var(--hero-p, 0) * var(--extra-px, 0px))
+			round calc(var(--hero-p, 0) * 0.5rem)
+		);
+		/* By the last stretch the backdrop's box is pixel-aligned with the
+		   real panel underneath, so it crossfades out over it — the only
+		   difference between the two is the media crop, and the fade hides
+		   that swap inside the settling motion. */
+		opacity: calc(1 - clamp(0, calc((var(--hero-p, 0) - 0.86) / 0.14), 1));
+		will-change: transform, clip-path, opacity;
+	}
+	:global(html[data-hero-lock]) .hero[data-settled] .hero__backdrop {
+		visibility: hidden;
+	}
+
+	:global(html[data-hero-lock]) .hero__intro {
+		position: relative;
+		z-index: 2;
+		/* Initial state per the design: the copy sits at the BOTTOM of the
+		   full-screen hero. --intro-shift is the measured distance from the
+		   copy's natural (stacked) position down to its bottom-anchored one;
+		   as progress rises the copy travels up to its resting spot while
+		   the panel travels down past it. */
+		transform: translateY(
+			calc((1 - var(--hero-p, 0)) * var(--intro-shift, 0px))
+		);
+		will-change: transform;
+		/* The copy and the descending edge cross late in the transition now
+		   that the copy starts low — the ink arrives on that crossing. */
+		--ink-p: clamp(0, calc((var(--hero-p, 0) - 0.42) / 0.46), 1);
+		color: color-mix(in oklab, var(--bg), var(--ink) calc(var(--ink-p) * 100%));
+		--eyebrow-color: color-mix(in srgb, currentColor 62%, transparent);
+		/* the muted second heading line and sub ride the same ink flip */
+		--heading-line2-color: color-mix(in srgb, currentColor 62%, transparent);
+		--badge-ink: currentColor;
+	}
+	:global(html[data-hero-lock]) .hero__intro .hero__aside,
+	:global(html[data-hero-lock]) .hero__intro .hero__sub {
+		color: color-mix(in srgb, currentColor 78%, transparent);
+	}
+
+	/* Annotation reveal on each note's own journey into the viewport, for
+	   the normal scrolling that follows the transition. */
+	@supports (animation-timeline: view()) {
+		@media (prefers-reduced-motion: no-preference) {
+			.note,
+			.sheet__foot {
+				animation: hero-mark linear both;
+				animation-timeline: view();
+				animation-range: entry 30% cover 12%;
+			}
+			.line:nth-of-type(1) .note,
+			.line:nth-of-type(2) .note,
+			.line:nth-of-type(3) .note,
+			.sheet__foot {
+				animation-delay: 0s;
+			}
+		}
+	}
+</style>
+
+<script>
+	// Locked-screen hero transition — scroll as trigger, not progress. The
+	// hero is a two-state machine: 'full' (backdrop full-screen, p=0) and
+	// 'stacked' (resting layout, p=1). While the page is at the top, a
+	// scroll gesture does not move the document; it fires one complete
+	// fixed-duration slide between the two states, eased through
+	// requestAnimationFrame, writing --hero-p on <html> — which the styles
+	// above translate into the backdrop's slide, the copy's ink flip, the
+	// panel hand-off and the masthead tint. Geometry (seam offset, side
+	// inset, bottom trim) is measured once and on resize — never per frame.
+	//
+	// While a slide runs, all wheel/touch input is swallowed: the viewport
+	// stays put and the animation neither restarts nor advances. When the
+	// forward slide lands, the lock releases — further scrolling (including
+	// the remainder of the triggering gesture's momentum) moves the page
+	// natively. Scrolling up once the page is back at the very top triggers
+	// the reverse slide. A short post-landing cooldown stops momentum
+	// jitter from immediately re-firing the opposite slide. Scrollbar
+	// drags, keyboard scrolling and anchor jumps bypass the lock via the
+	// scroll listener, which snaps the hero to the stacked state so the
+	// layout is never left half-open. Under prefers-reduced-motion the
+	// script bails and the resting layout stands.
+	const reduced = matchMedia('(prefers-reduced-motion: reduce)');
+	const hero = document.querySelector('.hero');
+	const show = hero?.querySelector('.hero__show');
+	const backdrop = hero?.querySelector('.hero__backdrop');
+	const intro = hero?.querySelector('.hero__intro');
+	const inner = hero?.querySelector('.hero__in');
+
+	if (hero instanceof HTMLElement && show instanceof HTMLElement && backdrop && !reduced.matches) {
+		const html = document.documentElement;
+		const DURATION = 950; // ms — the full slide, however far the user scrolled
+		const COOLDOWN = 350; // ms after landing before the opposite trigger arms
+		const TOUCH_INTENT = 18; // px of finger travel that reads as scroll intent
+
+		type State = 'full' | 'to-stacked' | 'stacked' | 'to-full';
+		let state: State = 'full';
+		let p = 0;
+		let raf = 0;
+		let coolUntil = 0;
+		let touchY = 0;
+		let touchTravel = 0;
+
+		const animating = () => state === 'to-stacked' || state === 'to-full';
+
+		const measure = () => {
+			hero.style.setProperty('--seam-px', `${show.offsetTop}px`);
+			hero.style.setProperty(
+				'--extra-px',
+				`${Math.max(0, innerHeight - show.offsetHeight)}px`
+			);
+			hero.style.setProperty('--side-px', getComputedStyle(show).marginLeft);
+			// Place the copy for the initial frame by shifting its CONTENT box
+			// (.hero__in, not the block's own padding) down within the
+			// full-screen overlay: bottom-anchored a short, viewport-scaled
+			// margin above the bottom of the screen, or centred on the
+			// viewport's midpoint, per the headingPosition prop. Never shifted
+			// upward on short viewports — the copy must not ride over the
+			// masthead. Offset chains ignore the running transform, so this
+			// is safe to re-measure at any p.
+			if (intro instanceof HTMLElement && inner instanceof HTMLElement) {
+				const top = intro.offsetTop + inner.offsetTop;
+				const shift =
+					hero.dataset.headingPos === 'center'
+						? (innerHeight - inner.offsetHeight) / 2 - top
+						: innerHeight -
+							Math.min(56, Math.max(28, innerHeight * 0.055)) -
+							(top + inner.offsetHeight);
+				hero.style.setProperty('--intro-shift', `${Math.max(0, shift)}px`);
+			}
+		};
+
+		const apply = () => {
+			html.style.setProperty('--hero-p', p.toFixed(4));
+			hero.toggleAttribute('data-settled', p > 0.995);
+		};
+
+		// Smooth acceleration out of rest, smooth deceleration into the
+		// landing — ease-in-out cubic reads as a physical slide, not linear.
+		const ease = (t: number) =>
+			t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
+
+		// Play the complete slide to one resting state. Triggers are ignored
+		// while a slide runs, so `from` is a resting value except when the
+		// scroll listener has snapped mid-flight.
+		const play = (to: 0 | 1) => {
+			state = to === 1 ? 'to-stacked' : 'to-full';
+			const from = p;
+			let start: number | undefined;
+			cancelAnimationFrame(raf);
+			const frame = (now: number) => {
+				start ??= now;
+				const t = Math.min(1, (now - start) / DURATION);
+				p = from + (to - from) * ease(t);
+				apply();
+				if (t < 1) {
+					raf = requestAnimationFrame(frame);
+				} else {
+					raf = 0;
+					state = to === 1 ? 'stacked' : 'full';
+					coolUntil = now + COOLDOWN;
+				}
+			};
+			raf = requestAnimationFrame(frame);
+		};
+
+		// Never fight another surface for the gesture: the full-screen menu
+		// overlay, or any open modal dialog (whose own panel may scroll).
+		const yielded = () =>
+			location.hash === '#site-menu' || !!document.querySelector('dialog[open]');
+
+		// One gesture, one transition. Down while 'full' → slide to stacked;
+		// up while 'stacked' at the very top → slide back to full. Everything
+		// else passes through to native scrolling.
+		const trigger = (delta: number, e: Event) => {
+			if (yielded()) return;
+			if (animating()) {
+				e.preventDefault(); // swallow — no restart, no page movement
+				return;
+			}
+			const cooling = performance.now() < coolUntil;
+			if (state === 'full' && delta > 0 && scrollY <= 0) {
+				e.preventDefault(); // the page never scrolls under the backdrop
+				if (!cooling) play(1);
+			} else if (state === 'stacked' && delta < 0 && scrollY <= 0 && !cooling) {
+				e.preventDefault();
+				play(0);
+			}
+		};
+
+		addEventListener('wheel', (e) => trigger(e.deltaY, e), { passive: false });
+		addEventListener(
+			'touchstart',
+			(e) => {
+				touchY = e.touches[0].clientY;
+				touchTravel = 0;
+			},
+			{ passive: true }
+		);
+		// Touch mirrors trigger(), but demands a little accumulated travel
+		// before firing so taps and jitter don't launch the transition. In
+		// the 'full' state every move is consumed (the viewport must not
+		// budge under the full-screen backdrop) even before the threshold.
+		addEventListener(
+			'touchmove',
+			(e) => {
+				const y = e.touches[0].clientY;
+				const delta = touchY - y; // >0 — finger up, scroll-down intent
+				touchY = y;
+				if (yielded()) return;
+				if (animating()) {
+					e.preventDefault();
+					return;
+				}
+				const cooling = performance.now() < coolUntil;
+				if (state === 'full' && scrollY <= 0) {
+					e.preventDefault();
+					touchTravel += delta;
+					if (touchTravel >= TOUCH_INTENT && !cooling) play(1);
+				} else if (state === 'stacked' && delta < 0 && scrollY <= 0) {
+					e.preventDefault();
+					touchTravel += delta;
+					if (touchTravel <= -TOUCH_INTENT && !cooling) play(0);
+				}
+			},
+			{ passive: false }
+		);
+		// Any scroll that slipped past the lock (scrollbar drag, keyboard,
+		// anchor jump, restored position) means the page has really moved —
+		// snap straight to the stacked state so the layout is never left
+		// half-open behind a scrolled document.
+		addEventListener(
+			'scroll',
+			() => {
+				if (scrollY > 2 && state !== 'stacked') {
+					cancelAnimationFrame(raf);
+					raf = 0;
+					p = 1;
+					state = 'stacked';
+					coolUntil = performance.now() + COOLDOWN;
+					apply();
+				}
+			},
+			{ passive: true }
+		);
+		let resizeRaf = 0;
+		addEventListener(
+			'resize',
+			() => {
+				cancelAnimationFrame(resizeRaf);
+				resizeRaf = requestAnimationFrame(measure);
+			},
+			{ passive: true }
+		);
+
+		html.setAttribute('data-hero-lock', '');
+		if (scrollY > 0 || location.hash) {
+			state = 'stacked';
+			p = 1;
+		}
+		measure();
+		apply();
+	}
+</script>

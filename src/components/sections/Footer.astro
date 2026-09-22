@@ -1,0 +1,313 @@
+---
+import Wrap from '../primitives/Wrap.astro';
+import Eyebrow from '../primitives/Eyebrow.astro';
+import SectionHeading from '../primitives/SectionHeading.astro';
+import RotatingBadge from '../primitives/RotatingBadge.astro';
+import { closing } from '../../data/closing';
+import { footer } from '../../data/footer';
+import { site } from '../../config/site';
+---
+
+<div class="footer">
+	<section class="contact" id="contact">
+		<Wrap>
+			<SectionHeading text={closing.heading} />
+			<div class="contact__badge">
+				<RotatingBadge
+					id="contact"
+					href={closing.cta.href}
+					label={closing.badge.label}
+					ring={closing.badge.ring}
+					repeat={4}
+					arrow="↗"
+					modal={closing.cta.modal}
+				/>
+			</div>
+
+			<div class="contact__inner">
+				<div class="contact__detail">
+					<Eyebrow>{closing.eyebrow}</Eyebrow>
+					<a class="contact__mail" href="mailto:">{site.email}</a>
+					<p class="contact__tel">{site.phone.label}</p>
+					<Eyebrow class="contact__loc">{closing.locationEyebrow}</Eyebrow>
+					<p class="contact__where">{site.areaCovered}<br />{closing.body}</p>
+				</div>
+
+				<div class="contact__base">
+					<ul class="contact__social">
+						{
+							closing.socials.map((social) => (
+								<li>
+									<a href={social.href} aria-label={social.label}>
+										{social.icon === 'facebook' && (
+											<svg viewBox="0 0 24 24" aria-hidden="true">
+												<path
+													fill="currentColor"
+													d="M13.4 21.9v-7.7h2.6l.4-3h-3V9.3c0-.87.24-1.46 1.5-1.46h1.6V5.15c-.28-.04-1.23-.12-2.34-.12-2.32 0-3.9 1.41-3.9 4v2.24H7.6v3h2.66v7.7h3.14z"
+												/>
+											</svg>
+										)}
+										{social.icon === 'instagram' && (
+											<svg viewBox="0 0 24 24" aria-hidden="true">
+												<rect
+													x="3.2"
+													y="3.2"
+													width="17.6"
+													height="17.6"
+													rx="5"
+													fill="none"
+													stroke="currentColor"
+													stroke-width="1.7"
+												/>
+												<circle
+													cx="12"
+													cy="12"
+													r="4"
+													fill="none"
+													stroke="currentColor"
+													stroke-width="1.7"
+												/>
+												<circle cx="17.2" cy="6.8" r="1.15" fill="currentColor" />
+											</svg>
+										)}
+										{social.icon === 'x' && (
+											<svg viewBox="0 0 24 24" aria-hidden="true">
+												<path
+													fill="currentColor"
+													d="M17.75 3h2.89l-6.31 7.21L21.75 21h-5.81l-4.55-5.95L6.18 21H3.28l6.75-7.71L2.9 3h5.96l4.11 5.44L17.75 3zm-1.01 16.27h1.6L8 4.64H6.28l10.46 14.63z"
+												/>
+											</svg>
+										)}
+									</a>
+								</li>
+							))
+						}
+					</ul>
+					<ul class="contact__legal">
+						{
+							closing.legal.map((link) => (
+								<li>
+									<a href={link.href}>{link.label}</a>
+								</li>
+							))
+						}
+					</ul>
+				</div>
+			</div>
+		</Wrap>
+	</section>
+
+	<footer class="foot">
+		<Wrap>
+			<Eyebrow>{footer.eyebrow}</Eyebrow>
+			<div class="foot__grid">
+				{
+					footer.services.map((group) => (
+						<div>
+							<Eyebrow>{group.label}</Eyebrow>
+							<ul>
+								{group.items.map((item) => (
+									<li>{item}</li>
+								))}
+							</ul>
+						</div>
+					))
+				}
+			</div>
+			<div class="foot__rule">
+				{footer.items.map((item) => <span>{item}</span>)}
+			</div>
+		</Wrap>
+	</footer>
+</div>
+
+<style>
+	/*
+	 * Layered reveal: the contact panel is the foreground layer; the site
+	 * footer sticks to the viewport bottom inside the shared wrapper, so it
+	 * sits pinned behind the panel and is uncovered as the panel scrolls up.
+	 * The sticky element never escapes .footer, so it can't bleed over the
+	 * sections above.
+	 */
+	.footer {
+		position: relative;
+	}
+
+	/* Proportions and tones are taken from the moremedia.at reference capture
+	   (3348px @2x ≈ 1674px viewport): heading ~4.45vw in warm bone, a 64vw
+	   hairline-ruled inner band, warm-grey meta text, white email, and a base
+	   row of circled social buttons over tiny uppercase legal links. */
+	.contact {
+		position: relative;
+		z-index: 2;
+		background: var(--ink);
+		color: var(--bone-on-dark);
+		padding-top: clamp(3.5rem, 5.6vw, 6.5rem);
+		padding-bottom: clamp(2rem, 3.2vw, 3.75rem);
+		text-align: center;
+		box-shadow: 0 2.5rem 4rem -1.5rem rgb(0 0 0 / 0.45);
+		--heading-size: var(--fs-contact);
+		--heading-weight: 700;
+		--heading-measure: none;
+		--heading-margin-inline: auto;
+		--heading-tracking: -0.035em;
+		--heading-leading: 1;
+		--badge-ink: var(--bg);
+		--eyebrow-color: var(--muted-warm-on-dark);
+	}
+	.contact__badge {
+		display: flex;
+		justify-content: center;
+		margin-top: clamp(2rem, 2.9vw, 3.25rem);
+		/* ring text renders at ~88% of the box; box ≈ 113px visible / 0.88 */
+		--badge-size: clamp(6.5rem, 7.65vw, 8.25rem);
+	}
+	.contact__inner {
+		width: min(100%, max(40rem, 64.3vw));
+		margin-inline: auto;
+		margin-top: clamp(4rem, 7.4vw, 8.5rem);
+	}
+	.contact__detail {
+		border-top: 1px solid var(--rule-on-dark);
+		padding-top: clamp(2.75rem, 4vw, 4.75rem);
+		padding-bottom: clamp(2rem, 2.75vw, 3.25rem);
+	}
+	.contact__mail {
+		display: inline-block;
+		margin-top: 1.4rem;
+		font-size: clamp(1.35rem, 2.1vw, 2.4rem);
+		font-weight: 700;
+		line-height: 1.1;
+		letter-spacing: -0.02em;
+		color: var(--bg);
+		text-decoration: none;
+	}
+	.contact__mail:hover {
+		color: var(--muted-warm-on-dark);
+	}
+	.contact__tel {
+		margin-top: 1rem;
+		font-size: var(--fs-sm);
+		color: var(--muted-warm-on-dark);
+	}
+	.contact__detail :global(.contact__loc) {
+		margin-top: 1.9rem;
+	}
+	.contact__where {
+		margin-top: 1.7rem;
+		font-size: var(--fs-note);
+		line-height: 1.7;
+		color: var(--muted-warm-on-dark);
+	}
+	.contact__base {
+		border-top: 1px solid var(--rule-on-dark);
+		padding-top: 1.3rem;
+	}
+	.contact__social {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: flex;
+		justify-content: center;
+		gap: 0.4rem;
+	}
+	.contact__social a {
+		display: grid;
+		place-items: center;
+		width: 1.9rem;
+		height: 1.9rem;
+		border: 1px solid var(--grey-on-dark);
+		border-radius: 50%;
+		color: var(--bg);
+		transition: border-color 0.2s ease;
+	}
+	.contact__social a:hover {
+		border-color: var(--bg);
+	}
+	.contact__social svg {
+		width: 0.85rem;
+		height: 0.85rem;
+		display: block;
+	}
+	.contact__legal {
+		list-style: none;
+		margin: 1.2rem 0 0;
+		padding: 0;
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: center;
+		gap: 0.6rem 1.4rem;
+	}
+	.contact__legal a {
+		font-size: var(--fs-eyebrow);
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.12em;
+		color: var(--muted-warm-on-dark);
+		text-decoration: none;
+		transition: color 0.2s ease;
+	}
+	.contact__legal a:hover {
+		color: var(--bg);
+	}
+
+	.foot {
+		background: var(--bone);
+		padding-top: clamp(2.5rem, 6vw, 4.5rem);
+		padding-bottom: 3rem;
+	}
+
+	/*
+	 * Pin the footer only when it fits in the viewport with room to spare —
+	 * a bottom-pinned footer taller than the viewport would leave its top
+	 * content permanently covered. Gates track the footer's measured height
+	 * per column count (~31em at 3 columns ≥48em wide, ~50em at 2 columns).
+	 */
+	@media (min-width: 48em) and (min-height: 40em), (min-width: 35em) and (min-height: 62em) {
+		.foot {
+			position: sticky;
+			bottom: 0;
+			z-index: 1;
+		}
+	}
+	.foot__grid {
+		margin-top: 1.8rem;
+		display: grid;
+		gap: 2rem clamp(2rem, 5vw, 4rem);
+		grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+	}
+	.foot__grid ul {
+		list-style: none;
+		margin: 0.9rem 0 0;
+		padding: 0;
+		font-size: var(--fs-list);
+		line-height: 1.4;
+		color: var(--ink-soft);
+	}
+	.foot__grid li {
+		padding-block: 0.55rem;
+		border-bottom: 1px solid var(--rule);
+	}
+	.foot__rule {
+		margin-top: 2.8rem;
+		padding-top: 1.2rem;
+		border-top: 1px solid var(--rule);
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.8rem 1.6rem;
+		justify-content: space-between;
+		font-size: var(--fs-3xs);
+		text-transform: uppercase;
+		letter-spacing: 0.1em;
+		color: var(--grey);
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.foot {
+			position: static;
+		}
+		.contact {
+			box-shadow: none;
+		}
+	}
+</style>

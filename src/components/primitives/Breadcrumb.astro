@@ -1,0 +1,69 @@
+---
+// Breadcrumb trail: small uppercase links in the eyebrow voice, arrow
+// separators, current page in ink without a link.
+interface Crumb {
+	label: string;
+	/** Omit on the current page. */
+	href?: string;
+}
+interface Props {
+	items: Crumb[];
+}
+const { items } = Astro.props;
+---
+
+<nav class="crumbs" aria-label="Breadcrumb">
+	<ol>
+		{
+			items.map((crumb) => (
+				<li>
+					{crumb.href ? (
+						<a href={crumb.href}>{crumb.label}</a>
+					) : (
+						<span aria-current="page">{crumb.label}</span>
+					)}
+				</li>
+			))
+		}
+	</ol>
+</nav>
+
+<style>
+	.crumbs ol {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.35rem 0.6rem;
+		font-size: var(--fs-eyebrow);
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.12em;
+		color: var(--grey);
+	}
+	.crumbs li {
+		display: flex;
+		align-items: center;
+		gap: 0.6rem;
+	}
+	.crumbs li + li::before {
+		content: '→';
+		letter-spacing: 0;
+	}
+	.crumbs a {
+		text-decoration: none;
+		transition: color 0.2s ease;
+	}
+	.crumbs a:hover {
+		color: var(--ink);
+	}
+	.crumbs [aria-current] {
+		color: var(--ink);
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.crumbs a {
+			transition: none;
+		}
+	}
+</style>

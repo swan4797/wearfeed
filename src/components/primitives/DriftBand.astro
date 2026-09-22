@@ -1,0 +1,131 @@
+---
+// Horizontally drifting band of outlined names. Purely decorative: hidden
+// from assistive technology, and the drift stops under prefers-reduced-motion.
+// Each row renders the item sequence four times and loops by translating
+// -50% (two sequence widths), so the loop is seamless on viewports up to two
+// sequence widths; adjacent rows drift in opposite directions and are
+// phase-shifted so the texture reads as a field, not a repeat. The names are
+// deliberately faint outlines — presentation, not content — so they are
+// exempt from text-contrast requirements. The `filled` item renders solid
+// ink and travels with its row; it repeats every two sequences to keep the
+// loop seamless. Hovering a name (pointer devices only) fills its outline
+// with ink and pauses that row in place; play-state resumes the drift from
+// the same position, never restarting it.
+interface Props {
+	items: string[];
+	rows?: number;
+	/** Row/item indices of the one name that rides the band solid-ink. */
+	filled?: { row: number; item: number };
+}
+const { items, rows = 1, filled } = Astro.props;
+const copies = 4;
+---
+
+<div class="drift" aria-hidden="true">
+	{
+		Array.from({ length: rows }, (_, row) => (
+			<div class="drift__line">
+				{Array.from({ length: copies }, (_, copy) => (
+					<span class="drift__seq">
+						{items.map((item, i) => (
+							<Fragment>
+								<span
+									class:list={[
+										'drift__item',
+										filled &&
+											filled.row === row &&
+											filled.item === i &&
+											copy % 2 === 0 &&
+											'drift__item--filled',
+									]}
+								>
+									{item}
+								</span>
+								<span class="drift__dot">·</span>
+							</Fragment>
+						))}
+					</span>
+				))}
+			</div>
+		))
+	}
+</div>
+
+<style>
+	.drift {
+		overflow: hidden;
+	}
+	.drift__line {
+		display: flex;
+		width: max-content;
+		white-space: nowrap;
+		font-family: var(--font-display);
+		font-size: var(--fs-ghost);
+		font-weight: 700;
+		letter-spacing: -0.02em;
+		line-height: 1.25;
+		animation: drift 80s linear infinite;
+		will-change: transform;
+	}
+	.drift__line + .drift__line {
+		margin-top: clamp(1.6rem, 2.45vw, 2.75rem);
+	}
+	.drift__seq {
+		display: inline-flex;
+		align-items: baseline;
+	}
+	.drift__item,
+	.drift__dot {
+		color: transparent;
+		-webkit-text-stroke: 1px var(--ghost-stroke);
+	}
+	.drift__item {
+		transition:
+			color 0.35s ease,
+			-webkit-text-stroke-color 0.35s ease;
+	}
+	.drift__item--filled {
+		color: var(--ink);
+		-webkit-text-stroke-color: var(--ink);
+	}
+	.drift__dot {
+		margin-inline: 0.45em;
+	}
+	@media (hover: hover) {
+		.drift__line:hover {
+			animation-play-state: paused;
+		}
+		.drift__item:hover {
+			color: var(--ink);
+			-webkit-text-stroke-color: var(--ink);
+		}
+	}
+	/* Alternate row direction, and phase-shift stacked rows — margin offsets
+	   survive reduced motion, negative delays desynchronise the drift when
+	   it runs. */
+	.drift__line:nth-child(even) {
+		animation-direction: reverse;
+	}
+	.drift__line:nth-child(2) {
+		margin-left: -9ch;
+		animation-delay: -21s;
+	}
+	.drift__line:nth-child(3) {
+		margin-left: -4ch;
+		animation-delay: -43s;
+	}
+	.drift__line:nth-child(4) {
+		margin-left: -6ch;
+		animation-delay: -11s;
+	}
+	@keyframes drift {
+		to {
+			transform: translateX(-50%);
+		}
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.drift__line {
+			animation: none;
+		}
+	}
+</style>

@@ -1,0 +1,27 @@
+---
+import Wrap from '../primitives/Wrap.astro';
+import Eyebrow from '../primitives/Eyebrow.astro';
+import DriftBand from '../primitives/DriftBand.astro';
+import { places } from '../../data/places';
+---
+
+{/* Decorative only — the whole band is hidden from assistive technology. */}
+<section class="ghost" aria-hidden="true">
+	<Wrap>
+		<Eyebrow>{places.eyebrow}</Eyebrow>
+	</Wrap>
+	<div class="ghost__band">
+		<DriftBand items={places.places} rows={4} filled={{ row: 1, item: 2 }} />
+	</div>
+</section>
+
+<style>
+	.ghost {
+		background: var(--bone);
+		padding-top: clamp(3rem, 7vw, 7.5rem);
+		padding-bottom: clamp(3.5rem, 8vw, 8.5rem);
+	}
+	.ghost__band {
+		margin-top: clamp(2.5rem, 4vw, 4.5rem);
+	}
+</style>
