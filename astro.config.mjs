@@ -3,11 +3,11 @@
 import sitemap from '@astrojs/sitemap';
 import { defineConfig, fontProviders } from 'astro/config';
 
-import node from '@astrojs/node';
+import netlify from '@astrojs/netlify';
 
 // https://astro.build/config
 export default defineConfig({
-  site: 'https://example.com',
+  site: 'https://wearefeed.netlify.app',
   integrations: [sitemap()],
 
   vite: {
@@ -42,7 +42,5 @@ export default defineConfig({
       },
 	],
 
-  adapter: node({
-    mode: 'standalone',
-  }),
+  adapter: netlify(),
 });
